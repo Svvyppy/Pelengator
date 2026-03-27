@@ -7,7 +7,10 @@
             "generator": "Unix Makefiles",
             "binaryDir": "${sourceDir}/build/${presetName}",
             "toolchainFile": "${sourceDir}/st_gen/toolchein/gcc-arm-none-eabi.cmake",
-            "cacheVariables": {}
+            "cacheVariables": {
+                "BOARD": "devboard",
+                "PELENG_FETCH_DEPS": "ON"
+            }
         },
         {
             "name": "Debug",

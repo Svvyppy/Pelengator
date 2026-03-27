@@ -9,6 +9,7 @@ extern "C"
 }
 
 #include "CommonSettings.h"
+#include "FilterCoefficients.hpp"
 
 /**
  * @brief Lightweight FIR wrapper over CMSIS-DSP arm_fir_f32.

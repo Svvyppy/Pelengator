@@ -1,10 +1,5 @@
 #include "Peleng.hpp"
 
-namespace
-{
-constexpr float kMicrosecondsPerSecond = 1000000.0f;
-}
-
 Peleng::Peleng() = default;
 
 void Peleng::Init() { InitAdcs(); }
@@ -69,62 +64,14 @@ void Peleng::InitAdcs()
 
 void Peleng::ProcessHalfTransfer(std::size_t start_index)
 {
-    std::array<ThresholdExcess, ADC_CHANNELS> arrivals{};
-
     for (std::size_t channel = 0U; channel < ADC_CHANNELS; ++channel)
     {
         envelope_filters_[channel].ApplyEnvelope(work_buffers_[channel].data() + start_index,
                                                  envelope_buffers_[channel].data(), DMA_HALF_BUFFER_SIZE);
-        arrivals[channel] = FindThresholdExcess(envelope_buffers_[channel]);
     }
 
-    DelayMeasurements current{};
-    current.valid = true;
-
-    for (const auto &arrival : arrivals)
-    {
-        if (!arrival.found)
-        {
-            current.valid = false;
-            break;
-        }
-    }
-
-    if (current.valid)
-    {
-        const int32_t ref_index = static_cast<int32_t>(arrivals[0].index);
-
-        current.d12_samples = static_cast<int32_t>(arrivals[1].index) - ref_index;
-        current.d13_samples = static_cast<int32_t>(arrivals[2].index) - ref_index;
-        current.d14_samples = static_cast<int32_t>(arrivals[3].index) - ref_index;
-
-        current.d12_us = SamplesToMicroseconds(current.d12_samples);
-        current.d13_us = SamplesToMicroseconds(current.d13_samples);
-        current.d14_us = SamplesToMicroseconds(current.d14_samples);
-    }
-
-    latest_delays_ = current;
+    latest_delays_ = peleng::EstimateDelayMeasurements(envelope_buffers_);
     has_new_delays_ = true;
-}
-
-Peleng::ThresholdExcess Peleng::FindThresholdExcess(const HalfBuffer &buffer)
-{
-    for (std::size_t index = 0U; index < DMA_HALF_BUFFER_SIZE; ++index)
-    {
-        const float value = buffer[index];
-        if (value > SIGNAL_THRESHOLD)
-        {
-            return ThresholdExcess{index, value, true};
-        }
-    }
-
-    return ThresholdExcess{};
-}
-
-float Peleng::SamplesToMicroseconds(int32_t samples)
-{
-    const float samples_f = static_cast<float>(samples);
-    return (samples_f * kMicrosecondsPerSecond) / SAMPLE_RATE_HZ;
 }
 
 void Peleng::ConvertAdcToF32(const uint32_t *source, float *destination, std::size_t length)

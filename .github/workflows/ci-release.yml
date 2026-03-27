@@ -19,16 +19,33 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Restore Release build cache
+        uses: actions/cache@v4
+        with:
+          path: build/Release
+          key: ${{ runner.os }}-release-build-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', '.devcontainer/Dockerfile', '.gitmodules', 'st_gen/toolchein/gcc-arm-none-eabi.cmake', 'src/**', 'Drivers/**') }}
+          restore-keys: |
+            ${{ runner.os }}-release-build-
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build devcontainer image
-        run: docker build -t peleng-devcontainer -f .devcontainer/Dockerfile .devcontainer
+        uses: docker/build-push-action@v6
+        with:
+          context: .devcontainer
+          file: .devcontainer/Dockerfile
+          load: true
+          tags: peleng-devcontainer:ci
+          cache-from: type=gha
 
       - name: Build firmware inside devcontainer
         run: |
           docker run --rm \
             --user "$(id -u):$(id -g)" \
-            -v "${{ github.workspace }}:/workspaces/Peleng" \
-            -w /workspaces/Peleng \
-            peleng-devcontainer \
+            -v "${{ github.workspace }}:${{ github.workspace }}" \
+            -w "${{ github.workspace }}" \
+            peleng-devcontainer:ci \
             bash -lc '
               cmake --preset Release &&
               cmake --build --preset Release -j &&

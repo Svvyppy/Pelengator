@@ -40,17 +40,17 @@ This means DSP processing for one half-buffer must complete within ~4.096 ms to 
 
 ## 3. Project Structure
 
-- `Core/Inc/Peleng.hpp`, `Core/Src/Peleng.cpp`
+- `src/peleng/Peleng.hpp`, `src/peleng/Peleng.cpp`
   - hardware-facing orchestrator: DMA callbacks, conversion, invoking DSP pipeline
-- `Core/Inc/dsp/PelengDsp.hpp`, `Core/Src/dsp/PelengDsp.cpp`
-  - DSP logic independent from HAL
-- `Core/Inc/Filter.hpp`, `Core/Src/Filter.cpp`
-  - FIR wrapper over CMSIS-DSP
-- `Core/Inc/platform/UartTelemetry.hpp`, `Core/platforms/UartTelemetry.cpp`
+- `src/peleng/DelayEstimator.hpp`, `src/peleng/DelayEstimator.cpp`
+  - host-testable delay detection helpers
+- `src/peleng/Filter.hpp`, `src/peleng/Filter.cpp`
+  - envelope filter: square input samples and run FIR over the result
+- `src/peleng/UartTelemetry.hpp`, `src/peleng/UartTelemetry.cpp`
   - non-blocking UART telemetry queue (`HAL_UART_Transmit_IT`)
-- `Core/platforms/Hw*.{h,cpp}`
+- `src/platforms/devboard/Hw*.{h,cpp}`
   - STM32 hardware init and IRQ glue
-- `Core/Inc/CommonSettings.h`
+- `src/peleng/CommonSettings.h`
   - DSP and pipeline constants
 
 ## 4. Current Telemetry Format
@@ -78,15 +78,47 @@ Resulting firmware binary:
 
 - `build/Debug/Peleng.elf`
 
+The `Debug` and `Release` presets enable `PELENG_FETCH_DEPS=ON`, so CMake
+downloads CMSIS-DSP and the STM32 HAL driver during configure.
+
+If you want to use the local `Drivers/` tree instead, configure with:
+
+```bash
+cmake --preset Debug -DPELENG_FETCH_DEPS=OFF
+```
+
+Board selection is controlled by the cached `BOARD` variable. The default is
+`devboard`:
+
+```bash
+cmake --preset Debug -DBOARD=devboard
+```
+
+### Host-side DSP tests
+
+The `tests/` directory contains a separate host build for the pure DSP pieces:
+`Filter` and delay estimation.
+
+Run them from the repository root:
+
+```bash
+cmake -S tests -B build/tests -DCMAKE_BUILD_TYPE=Debug
+cmake --build build/tests -j
+ctest --test-dir build/tests --output-on-failure
+```
+
+This test binary runs on the host PC and does not need HAL or a target toolchain.
+
 ### Toolchain notes
 
 - GCC ARM Embedded is configured via:
   - `st_gen/toolchein/gcc-arm-none-eabi.cmake`
-- CMSIS-DSP is built as a subdirectory library.
+- CMSIS-DSP is configured through CMake and built as a subdirectory library.
+- `BOARD` selects the platform folder under `src/platforms/`.
 
 ## 6. Key Configuration
 
-Main constants are in `Core/Inc/CommonSettings.h`:
+Main constants are in `src/peleng/CommonSettings.h`:
 
 - `SAMPLE_RATE_HZ`
 - `BUFFER_SIZE`
@@ -111,9 +143,10 @@ When changing these values, verify:
 After any DSP or platform change:
 
 1. Build (`cmake --build --preset Debug`) must pass.
-2. Verify ADC DMA half/full callbacks are firing.
-3. Verify UART telemetry stream continuity (no long pauses under load).
-4. Inject known inter-channel delay and check `d12/d13/d14` sign and magnitude.
+2. Host tests (`ctest --test-dir build/tests --output-on-failure`) must pass.
+3. Verify ADC DMA half/full callbacks are firing.
+4. Verify UART telemetry stream continuity (no long pauses under load).
+5. Inject known inter-channel delay and check `d12/d13/d14` sign and magnitude.
 
 ## 9. Recommended Next Improvements
 
@@ -193,13 +226,19 @@ Repository includes two workflows:
 - `.github/workflows/ci-release.yml`
   - builds firmware on each `push` and `pull_request`
   - runs build inside Docker container created from `.devcontainer/Dockerfile`
+  - caches `build/Release` and Docker layers for faster reruns
   - publishes build artifacts (`.elf`, `.map`, `.hex`, `.bin`)
   - on tags matching `v*` creates/updates GitHub Release and attaches
     firmware artifacts plus source archives (`.zip`, `.tar.gz`)
 - `.github/workflows/publish-doxygen.yml`
   - builds docs on `push` to `master` / `main`
   - runs docs generation inside Docker container created from `.devcontainer/Dockerfile`
+  - caches `build/Debug` and Docker layers for faster reruns
   - deploys generated Doxygen HTML to GitHub Pages
+- `.github/workflows/static-analysis.yml`
+  - runs `clang-tidy` and `cppcheck`
+  - reuses the same container image and build cache as CI
+  - uses `cmake --preset Debug` to generate `compile_commands.json`
 
 Release flow:
 
