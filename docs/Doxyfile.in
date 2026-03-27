@@ -4,16 +4,17 @@ PROJECT_NAME           = "@CMAKE_PROJECT_NAME@"
 PROJECT_BRIEF          = "Hydroacoustic direction finder firmware"
 PROJECT_NUMBER         = "@CMAKE_PROJECT_VERSION@"
 OUTPUT_DIRECTORY       = "@DOXYGEN_OUTPUT_DIR@"
+PROJECT_LOGO           = "@CMAKE_SOURCE_DIR@/docs/cmsis_style/cmsis_logo_white_small.png"
 
 CREATE_SUBDIRS         = NO
 OUTPUT_LANGUAGE        = English
 
 INPUT                  = "@CMAKE_SOURCE_DIR@/README.md" \
-                         "@CMAKE_SOURCE_DIR@/Core/Inc" \
-                         "@CMAKE_SOURCE_DIR@/Core/Src" \
-                         "@CMAKE_SOURCE_DIR@/Core/platforms"
+                         "@CMAKE_SOURCE_DIR@/src" \
+                         "@CMAKE_SOURCE_DIR@/tests"
 FILE_PATTERNS          = *.h *.hpp *.c *.cpp *.md
 RECURSIVE              = YES
+EXCLUDE_PATTERNS       = */build/* */.git/* */Drivers/* */docs/cmsis_style/*
 
 USE_MDFILE_AS_MAINPAGE = "@CMAKE_SOURCE_DIR@/README.md"
 EXTRACT_ALL            = YES
@@ -23,6 +24,22 @@ EXTRACT_STATIC         = NO
 GENERATE_HTML          = YES
 HTML_OUTPUT            = html
 GENERATE_TREEVIEW      = YES
+HTML_HEADER            = "@CMAKE_SOURCE_DIR@/docs/cmsis_style/header.html"
+HTML_FOOTER            = "@CMAKE_SOURCE_DIR@/docs/cmsis_style/footer.html"
+HTML_EXTRA_STYLESHEET  = "@CMAKE_SOURCE_DIR@/docs/cmsis_style/extra_stylesheet.css" \
+                         "@CMAKE_SOURCE_DIR@/docs/cmsis_style/extra_navtree.css" \
+                         "@CMAKE_SOURCE_DIR@/docs/cmsis_style/extra_tabs.css" \
+                         "@CMAKE_SOURCE_DIR@/docs/cmsis_style/extra_search.css" \
+                         "@CMAKE_SOURCE_DIR@/docs/cmsis_style/version.css"
+HTML_EXTRA_FILES       = "@CMAKE_SOURCE_DIR@/docs/cmsis_style/tabs.js" \
+                         "@CMAKE_SOURCE_DIR@/docs/cmsis_style/navtree.js" \
+                         "@CMAKE_SOURCE_DIR@/docs/cmsis_style/footer.js" \
+                         "@CMAKE_SOURCE_DIR@/docs/cmsis_style/darkmode_toggle.js" \
+                         "@CMAKE_SOURCE_DIR@/docs/cmsis_style/resize.js" \
+                         "@CMAKE_SOURCE_DIR@/docs/cmsis_style/version.js" \
+                         "@CMAKE_SOURCE_DIR@/docs/cmsis_style/dropdown.png" \
+                         "@CMAKE_SOURCE_DIR@/docs/cmsis_style/tab_b.png" \
+                         "@CMAKE_SOURCE_DIR@/docs/cmsis_style/tab_topnav.png"
 
 GENERATE_LATEX         = NO
 GENERATE_MAN           = NO
