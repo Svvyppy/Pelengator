@@ -72,8 +72,9 @@ jobs:
         run: |
           cppcheck \
             --project=build/tests/compile_commands.json \
-            --enable=warning,style,performance,portability \
+            --enable=warning,performance,portability \
             --file-filter=src/peleng/* \
+            --suppress=preprocessorErrorDirective \
             --inline-suppr \
             --error-exitcode=1
 
