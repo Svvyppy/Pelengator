@@ -1,0 +1,5 @@
+#define BLOCK_SIZE 32
+#define NUM_TAPS 32
+#define FIR_ORDER 16
+#define NUM_BLOCKS (BUFFER_SIZE / BLOCK_SIZE)
+#define BUFFER_SIZE 2048
