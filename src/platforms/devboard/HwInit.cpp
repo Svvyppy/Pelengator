@@ -106,10 +106,7 @@ void ConfigureOpampPga(OPAMP_HandleTypeDef *hopamp, OPAMP_TypeDef *instance)
     CheckHalStatus(HAL_OPAMP_Init(hopamp));
 }
 
-void ConfigureBaseTimer(TIM_HandleTypeDef *htim,
-                        TIM_TypeDef *instance,
-                        uint32_t prescaler,
-                        uint32_t period,
+void ConfigureBaseTimer(TIM_HandleTypeDef *htim, TIM_TypeDef *instance, uint32_t prescaler, uint32_t period,
                         uint32_t master_trigger)
 {
     TIM_MasterConfigTypeDef master_config = {0};
@@ -156,45 +153,21 @@ void Adc5Init(ADC_HandleTypeDef *hadc)
     ConfigureAdcRegularChannel(hadc, ADC_CHANNEL_VOPAMP5);
 }
 
-void Dac3Init(DAC_HandleTypeDef *hdac)
-{
-    ConfigureDac(hdac, DAC3);
-}
+void Dac3Init(DAC_HandleTypeDef *hdac) { ConfigureDac(hdac, DAC3); }
 
-void Dac4Init(DAC_HandleTypeDef *hdac)
-{
-    ConfigureDac(hdac, DAC4);
-}
+void Dac4Init(DAC_HandleTypeDef *hdac) { ConfigureDac(hdac, DAC4); }
 
-void Opamp1Init(OPAMP_HandleTypeDef *hopamp)
-{
-    ConfigureOpampPga(hopamp, OPAMP1);
-}
+void Opamp1Init(OPAMP_HandleTypeDef *hopamp) { ConfigureOpampPga(hopamp, OPAMP1); }
 
-void Opamp3Init(OPAMP_HandleTypeDef *hopamp)
-{
-    ConfigureOpampPga(hopamp, OPAMP3);
-}
+void Opamp3Init(OPAMP_HandleTypeDef *hopamp) { ConfigureOpampPga(hopamp, OPAMP3); }
 
-void Opamp4Init(OPAMP_HandleTypeDef *hopamp)
-{
-    ConfigureOpampPga(hopamp, OPAMP4);
-}
+void Opamp4Init(OPAMP_HandleTypeDef *hopamp) { ConfigureOpampPga(hopamp, OPAMP4); }
 
-void Opamp5Init(OPAMP_HandleTypeDef *hopamp)
-{
-    ConfigureOpampPga(hopamp, OPAMP5);
-}
+void Opamp5Init(OPAMP_HandleTypeDef *hopamp) { ConfigureOpampPga(hopamp, OPAMP5); }
 
-void Tim6Init(TIM_HandleTypeDef *htim)
-{
-    ConfigureBaseTimer(htim, TIM6, 169U, 3U, TIM_TRGO_UPDATE);
-}
+void Tim6Init(TIM_HandleTypeDef *htim) { ConfigureBaseTimer(htim, TIM6, 169U, 3U, TIM_TRGO_UPDATE); }
 
-void Tim7Init(TIM_HandleTypeDef *htim)
-{
-    ConfigureBaseTimer(htim, TIM7, 16999U, 4U, TIM_TRGO_RESET);
-}
+void Tim7Init(TIM_HandleTypeDef *htim) { ConfigureBaseTimer(htim, TIM7, 16999U, 4U, TIM_TRGO_RESET); }
 
 void Uart1Init(UART_HandleTypeDef *huart)
 {
@@ -290,3 +263,11 @@ void Error_Handler(void)
     {
     }
 }
+
+#ifdef USE_FULL_ASSERT
+void assert_failed(uint8_t *file, uint32_t line)
+{
+    (void)file;
+    (void)line;
+}
+#endif /* USE_FULL_ASSERT */

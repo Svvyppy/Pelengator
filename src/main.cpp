@@ -2,12 +2,13 @@
 
 #include "Peleng.hpp"
 #include "cordic.h"
-#include "platform/UartTelemetry.hpp"
+#include "UartTelemetry.hpp"
 
 Peleng peleng;
 
 int main(void)
 {
+    InitHw();
     peleng.Init();
 
     while (1)
@@ -34,11 +35,3 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         HAL_IncTick();
     }
 }
-
-#ifdef USE_FULL_ASSERT
-void assert_failed(uint8_t *file, uint32_t line)
-{
-    (void)file;
-    (void)line;
-}
-#endif /* USE_FULL_ASSERT */

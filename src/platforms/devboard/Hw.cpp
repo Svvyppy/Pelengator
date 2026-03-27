@@ -28,10 +28,7 @@ void InitAnalogPeripherals(HwInstances *hw)
     Adc5Init(&hw->hadc5);
 }
 
-inline void HandleAdcDmaIrq(ADC_HandleTypeDef *hadc)
-{
-    HAL_DMA_IRQHandler(hadc->DMA_Handle);
-}
+inline void HandleAdcDmaIrq(ADC_HandleTypeDef *hadc) { HAL_DMA_IRQHandler(hadc->DMA_Handle); }
 } // namespace
 
 // Singleton implementation

@@ -36,8 +36,8 @@ enable_language(C ASM CXX)
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME})
 
-# Add STM32CubeMX generated sources
-add_subdirectory(Core)
+# Add project sources
+add_subdirectory(src)
 
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
@@ -54,7 +54,10 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS-DSP/Include
     ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS/Device/ST/STM32G4xx/Include
     ${CMAKE_CURRENT_SOURCE_DIR}/Drivers/CMSIS/Include
-    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/peleng
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/platforms
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/platforms/devboard
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/platforms/devboard/stm32_gen
 )
 
 # Add project symbols (macros)

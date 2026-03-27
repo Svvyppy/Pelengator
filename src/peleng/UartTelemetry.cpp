@@ -1,4 +1,4 @@
-#include "platform/UartTelemetry.hpp"
+#include "UartTelemetry.hpp"
 
 #include <array>
 #include <cstdio>
@@ -22,10 +22,7 @@ struct UartTelemetryQueue
 
 UartTelemetryQueue g_queue{};
 
-std::size_t NextIndex(std::size_t index)
-{
-    return (index + 1U) % kQueueDepth;
-}
+std::size_t NextIndex(std::size_t index) { return (index + 1U) % kQueueDepth; }
 
 uint16_t NormalizeLength(int formatted_length)
 {
@@ -42,10 +39,7 @@ uint16_t NormalizeLength(int formatted_length)
     return static_cast<uint16_t>(formatted_length);
 }
 
-bool IsTxReady(const UART_HandleTypeDef *huart)
-{
-    return huart->gState == HAL_UART_STATE_READY;
-}
+bool IsTxReady(const UART_HandleTypeDef *huart) { return huart->gState == HAL_UART_STATE_READY; }
 } // namespace
 
 /**
@@ -74,10 +68,8 @@ void UartTelemetryProcess(void)
         return;
     }
 
-    const HAL_StatusTypeDef tx_status =
-        HAL_UART_Transmit_IT(huart,
-                             reinterpret_cast<uint8_t *>(g_queue.messages[g_queue.head].data()),
-                             g_queue.lengths[g_queue.head]);
+    const HAL_StatusTypeDef tx_status = HAL_UART_Transmit_IT(
+        huart, reinterpret_cast<uint8_t *>(g_queue.messages[g_queue.head].data()), g_queue.lengths[g_queue.head]);
 
     if (tx_status == HAL_OK)
     {
@@ -101,15 +93,11 @@ bool SendDelayTelemetryUart(const DelayMeasurements &delays)
     int formatted_length = 0;
     if (delays.valid)
     {
-        formatted_length = std::snprintf(tx_buffer,
-                                         kMessageCapacity,
-                                         "D12=%ld(%0.2fus) D13=%ld(%0.2fus) D14=%ld(%0.2fus)\\r\\n",
-                                         static_cast<long>(delays.d12_samples),
-                                         static_cast<double>(delays.d12_us),
-                                         static_cast<long>(delays.d13_samples),
-                                         static_cast<double>(delays.d13_us),
-                                         static_cast<long>(delays.d14_samples),
-                                         static_cast<double>(delays.d14_us));
+        formatted_length =
+            std::snprintf(tx_buffer, kMessageCapacity, "D12=%ld(%0.2fus) D13=%ld(%0.2fus) D14=%ld(%0.2fus)\\r\\n",
+                          static_cast<long>(delays.d12_samples), static_cast<double>(delays.d12_us),
+                          static_cast<long>(delays.d13_samples), static_cast<double>(delays.d13_us),
+                          static_cast<long>(delays.d14_samples), static_cast<double>(delays.d14_us));
     }
     else
     {
