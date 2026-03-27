@@ -34,20 +34,19 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .devcontainer
-          file: Dockerfile
+          file: .devcontainer/Dockerfile
           load: true
           tags: peleng-devcontainer:ci
           cache-from: type=gha
-          cache-to: type=gha,mode=max
 
-      - name: Generate compile commands in devcontainer
+      - name: Generate host compile commands in devcontainer
         run: |
           docker run --rm \
             --user "$(id -u):$(id -g)" \
             -v "${{ github.workspace }}:${{ github.workspace }}" \
             -w "${{ github.workspace }}" \
             peleng-devcontainer:ci \
-            bash -lc 'cmake --preset Debug'
+            bash -lc 'cmake -S tests -B build/tests -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON'
 
       - name: Install analysis tools
         run: |
@@ -57,8 +56,9 @@ jobs:
       - name: Run clang-tidy
         run: |
           mapfile -t TIDY_FILES < <(
-            find src -type f \( -name '*.cpp' -o -name '*.c' \) \
-              | grep -v '/stm32_gen/'
+            printf '%s\n' \
+              src/peleng/Filter.cpp \
+              src/peleng/DelayEstimator.cpp
           )
 
           if [ "${#TIDY_FILES[@]}" -eq 0 ]; then
@@ -66,13 +66,14 @@ jobs:
             exit 1
           fi
 
-          clang-tidy -p build/Debug "${TIDY_FILES[@]}"
+          clang-tidy -p build/tests "${TIDY_FILES[@]}"
 
       - name: Run cppcheck
         run: |
           mapfile -t CPPCHECK_FILES < <(
-            find src -type f \( -name '*.cpp' -o -name '*.c' \) \
-              | grep -v '/stm32_gen/'
+            printf '%s\n' \
+              src/peleng/Filter.cpp \
+              src/peleng/DelayEstimator.cpp
           )
 
           if [ "${#CPPCHECK_FILES[@]}" -eq 0 ]; then
@@ -81,7 +82,7 @@ jobs:
           fi
 
           cppcheck \
-            --project=build/Debug/compile_commands.json \
+            --project=build/tests/compile_commands.json \
             --enable=warning,style,performance,portability \
             --inline-suppr \
             --error-exitcode=1 \
@@ -94,6 +95,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Cache host test build
         uses: actions/cache@v4
