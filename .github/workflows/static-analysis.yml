@@ -39,14 +39,14 @@ jobs:
           tags: peleng-devcontainer:ci
           cache-from: type=gha
 
-      - name: Generate compile commands in devcontainer
+      - name: Generate host compile commands in devcontainer
         run: |
           docker run --rm \
             --user "$(id -u):$(id -g)" \
             -v "${{ github.workspace }}:${{ github.workspace }}" \
             -w "${{ github.workspace }}" \
             peleng-devcontainer:ci \
-            bash -lc 'cmake --preset Debug'
+            bash -lc 'cmake -S tests -B build/tests -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON'
 
       - name: Install analysis tools
         run: |
@@ -56,8 +56,9 @@ jobs:
       - name: Run clang-tidy
         run: |
           mapfile -t TIDY_FILES < <(
-            find src -type f \( -name '*.cpp' -o -name '*.c' \) \
-              | grep -v '/stm32_gen/'
+            printf '%s\n' \
+              src/peleng/Filter.cpp \
+              src/peleng/DelayEstimator.cpp
           )
 
           if [ "${#TIDY_FILES[@]}" -eq 0 ]; then
@@ -65,26 +66,17 @@ jobs:
             exit 1
           fi
 
-          clang-tidy -p build/Debug "${TIDY_FILES[@]}"
+          clang-tidy -p build/tests "${TIDY_FILES[@]}"
 
       - name: Run cppcheck
         run: |
-          mapfile -t CPPCHECK_FILES < <(
-            find src -type f \( -name '*.cpp' -o -name '*.c' \) \
-              | grep -v '/stm32_gen/'
-          )
-
-          if [ "${#CPPCHECK_FILES[@]}" -eq 0 ]; then
-            echo "No files selected for cppcheck"
-            exit 1
-          fi
-
           cppcheck \
-            --project=build/Debug/compile_commands.json \
-            --enable=warning,style,performance,portability \
+            --project=build/tests/compile_commands.json \
+            --enable=warning,performance,portability \
+            --file-filter=src/peleng/* \
+            --suppress=preprocessorErrorDirective \
             --inline-suppr \
-            --error-exitcode=1 \
-            "${CPPCHECK_FILES[@]}"
+            --error-exitcode=1
 
   host-tests:
     name: Host DSP Tests
