@@ -9,6 +9,9 @@ extern "C"
 {
 #endif
 
+    /**
+     * @brief Bundle of initialized STM32 HAL peripheral handles.
+     */
     struct HwInstances
     {
         ADC_HandleTypeDef hadc1;
@@ -27,8 +30,15 @@ extern "C"
         TIM_HandleTypeDef htim15;
     };
 
+    /**
+     * @brief Return pointer to global hardware handles.
+     */
     struct HwInstances *GetHwInstances(void);
 
+    /**
+     * @brief Initialize board peripherals required by the firmware.
+     * @return true on success.
+     */
     bool InitHw(void);
 
 #ifdef __cplusplus

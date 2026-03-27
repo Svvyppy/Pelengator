@@ -9,45 +9,43 @@ PROJECT_LOGO           = "@CMAKE_SOURCE_DIR@/docs/cmsis_style/cmsis_logo_white_s
 CREATE_SUBDIRS         = NO
 OUTPUT_LANGUAGE        = English
 
-INPUT                  = "@CMAKE_SOURCE_DIR@/README.md" \
-                         "@CMAKE_SOURCE_DIR@/src" \
-                         "@CMAKE_SOURCE_DIR@/tests"
-FILE_PATTERNS          = *.h *.hpp *.c *.cpp *.md
+INPUT                  = "@CMAKE_SOURCE_DIR@/docs/mainpage.md" \
+                         "@CMAKE_SOURCE_DIR@/src/peleng/Peleng.hpp" \
+                         "@CMAKE_SOURCE_DIR@/src/peleng/Filter.hpp" \
+                         "@CMAKE_SOURCE_DIR@/src/peleng/DelayEstimator.hpp" \
+                         "@CMAKE_SOURCE_DIR@/src/peleng/UartTelemetry.hpp" \
+                         "@CMAKE_SOURCE_DIR@/src/peleng/CommonSettings.h" \
+                         "@CMAKE_SOURCE_DIR@/src/platforms/Hw.h"
+FILE_PATTERNS          = *.h *.hpp *.md
 RECURSIVE              = YES
-EXCLUDE_PATTERNS       = */build/* */.git/* */Drivers/* */docs/cmsis_style/*
+EXCLUDE_PATTERNS       = */build/* */.git/* */Drivers/* */docs/cmsis_style/* */tests/* */stm32_gen/*
 
-USE_MDFILE_AS_MAINPAGE = "@CMAKE_SOURCE_DIR@/README.md"
-EXTRACT_ALL            = YES
+USE_MDFILE_AS_MAINPAGE = "@CMAKE_SOURCE_DIR@/docs/mainpage.md"
+EXTRACT_ALL            = NO
 EXTRACT_PRIVATE        = NO
 EXTRACT_STATIC         = NO
 
 GENERATE_HTML          = YES
 HTML_OUTPUT            = html
 GENERATE_TREEVIEW      = YES
-HTML_HEADER            = "@CMAKE_SOURCE_DIR@/docs/cmsis_style/header.html"
-HTML_FOOTER            = "@CMAKE_SOURCE_DIR@/docs/cmsis_style/footer.html"
 HTML_EXTRA_STYLESHEET  = "@CMAKE_SOURCE_DIR@/docs/cmsis_style/extra_stylesheet.css" \
                          "@CMAKE_SOURCE_DIR@/docs/cmsis_style/extra_navtree.css" \
                          "@CMAKE_SOURCE_DIR@/docs/cmsis_style/extra_tabs.css" \
                          "@CMAKE_SOURCE_DIR@/docs/cmsis_style/extra_search.css" \
                          "@CMAKE_SOURCE_DIR@/docs/cmsis_style/version.css"
-HTML_EXTRA_FILES       = "@CMAKE_SOURCE_DIR@/docs/cmsis_style/tabs.js" \
-                         "@CMAKE_SOURCE_DIR@/docs/cmsis_style/navtree.js" \
-                         "@CMAKE_SOURCE_DIR@/docs/cmsis_style/footer.js" \
-                         "@CMAKE_SOURCE_DIR@/docs/cmsis_style/darkmode_toggle.js" \
-                         "@CMAKE_SOURCE_DIR@/docs/cmsis_style/resize.js" \
-                         "@CMAKE_SOURCE_DIR@/docs/cmsis_style/version.js" \
-                         "@CMAKE_SOURCE_DIR@/docs/cmsis_style/dropdown.png" \
-                         "@CMAKE_SOURCE_DIR@/docs/cmsis_style/tab_b.png" \
-                         "@CMAKE_SOURCE_DIR@/docs/cmsis_style/tab_topnav.png"
+TOC_INCLUDE_HEADINGS   = 2
 
 GENERATE_LATEX         = NO
 GENERATE_MAN           = NO
 GENERATE_RTF           = NO
 GENERATE_XML           = NO
 
-HIDE_UNDOC_MEMBERS     = NO
-HIDE_UNDOC_CLASSES     = NO
+HIDE_UNDOC_MEMBERS     = YES
+HIDE_UNDOC_CLASSES     = YES
+HIDE_UNDOC_RELATIONS   = YES
+ALPHABETICAL_INDEX     = NO
+SHOW_FILES             = NO
+SHOW_NAMESPACES        = YES
 WARN_IF_UNDOCUMENTED   = YES
 WARN_IF_DOC_ERROR      = YES
 

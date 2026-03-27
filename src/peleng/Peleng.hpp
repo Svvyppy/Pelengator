@@ -8,18 +8,34 @@
 #include "Filter.hpp"
 #include "Hw.h"
 
+/**
+ * @brief Top-level real-time orchestrator for Peleng DSP pipeline.
+ *
+ * Owns ADC DMA buffers, performs conversion and filtering, estimates delays,
+ * and publishes most recent measurements for telemetry.
+ */
 class Peleng
 {
 public:
+    /** @brief Construct processing pipeline and internal state. */
     Peleng();
     ~Peleng() = default;
 
+    /** @brief Initialize hardware-facing ADC acquisition path. */
     void Init();
+    /** @brief Run one non-blocking processing iteration in the main loop. */
     void Process();
 
+    /** @brief Mark first half of DMA buffers ready for processing. */
     void DmaHalfTransferCallback(ADC_HandleTypeDef *hadc);
+    /** @brief Mark second half of DMA buffers ready for processing. */
     void DmaTransferCompleteCallback(ADC_HandleTypeDef *hadc);
 
+    /**
+     * @brief Get latest computed channel delays.
+     * @param[out] out Destination structure.
+     * @return true if a new delay frame was available and copied.
+     */
     bool TryGetLatestDelays(DelayMeasurements *out);
 
 private:
