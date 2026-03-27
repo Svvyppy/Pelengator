@@ -1,0 +1,58 @@
+name: Publish Doxygen Docs
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: doxygen-pages
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    name: Build and Deploy Doxygen
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake \
+            make \
+            doxygen \
+            graphviz \
+            gcc-arm-none-eabi \
+            binutils-arm-none-eabi
+
+      - name: Configure CMake
+        run: cmake --preset Debug
+
+      - name: Build docs target
+        run: cmake --build --preset Debug --target docs
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload static site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/Debug/docs/doxygen/html
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

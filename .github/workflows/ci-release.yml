@@ -1,0 +1,98 @@
+name: CI and Release
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Firmware
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake \
+            make \
+            gcc-arm-none-eabi \
+            binutils-arm-none-eabi
+
+      - name: Configure CMake
+        run: cmake --preset Release
+
+      - name: Build firmware
+        run: cmake --build --preset Release -j
+
+      - name: Create HEX and BIN
+        run: |
+          arm-none-eabi-objcopy -O ihex build/Release/Peleng.elf build/Release/Peleng.hex
+          arm-none-eabi-objcopy -O binary build/Release/Peleng.elf build/Release/Peleng.bin
+
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-release
+          path: |
+            build/Release/Peleng.elf
+            build/Release/Peleng.map
+            build/Release/Peleng.hex
+            build/Release/Peleng.bin
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download firmware artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: firmware-release
+          path: dist
+
+      - name: Create source archives
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          git archive --format=tar.gz --output "Peleng-${TAG}-source.tar.gz" "${GITHUB_SHA}"
+          git archive --format=zip --output "Peleng-${TAG}-source.zip" "${GITHUB_SHA}"
+
+      - name: Create or update release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          ASSETS=(
+            "dist/Peleng.elf"
+            "dist/Peleng.map"
+            "dist/Peleng.hex"
+            "dist/Peleng.bin"
+            "Peleng-${TAG}-source.tar.gz"
+            "Peleng-${TAG}-source.zip"
+          )
+
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            gh release upload "${TAG}" "${ASSETS[@]}" --clobber
+          else
+            gh release create "${TAG}" "${ASSETS[@]}" \
+              --title "${TAG}" \
+              --notes "Automated firmware and source release for ${TAG}."
+          fi

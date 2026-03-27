@@ -186,3 +186,25 @@ Generated HTML output:
 
 If `docs` target is missing, install Doxygen in your environment.
 
+## 12. CI/CD (GitHub Actions)
+
+Repository includes two workflows:
+
+- `.github/workflows/ci-release.yml`
+  - builds firmware on each `push` and `pull_request`
+  - publishes build artifacts (`.elf`, `.map`, `.hex`, `.bin`)
+  - on tags matching `v*` creates/updates GitHub Release and attaches
+    firmware artifacts plus source archives (`.zip`, `.tar.gz`)
+- `.github/workflows/publish-doxygen.yml`
+  - builds docs on `push` to `master` / `main`
+  - deploys generated Doxygen HTML to GitHub Pages
+
+Release flow:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+To publish Doxygen on Pages, set repository Pages source to **GitHub Actions**
+in repository settings.
