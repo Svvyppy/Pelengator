@@ -71,3 +71,21 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     CMSISDSP
     # Add user defined libraries
 )
+# Optional API documentation target (Doxygen)
+find_package(Doxygen QUIET)
+if(DOXYGEN_FOUND)
+    set(DOXYGEN_OUTPUT_DIR "${CMAKE_BINARY_DIR}/docs/doxygen")
+    set(DOXYGEN_IN "${CMAKE_CURRENT_SOURCE_DIR}/docs/Doxyfile.in")
+    set(DOXYGEN_OUT "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile")
+
+    configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
+
+    add_custom_target(docs
+        COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMENT "Generating API documentation with Doxygen"
+        VERBATIM
+    )
+else()
+    message(STATUS "Doxygen not found: 'docs' target is unavailable")
+endif()

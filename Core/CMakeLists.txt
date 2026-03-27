@@ -23,8 +23,12 @@ set(MX_Include_Dirs
 # STM32CubeMX generated application sources
 set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/Src/main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Src/Peleng.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Src/Filter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Src/dsp/PelengDsp.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/platforms/HwInit.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/platforms/Hw.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/platforms/UartTelemetry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Src/cordic.c
     ${CMAKE_CURRENT_SOURCE_DIR}/platforms/stm32g4xx_it.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Src/stm32g4xx_hal_msp.c

@@ -3,6 +3,37 @@
 #include "HwInit.h"
 #include "cordic.h"
 
+namespace
+{
+void InitCorePeripherals(HwInstances *hw)
+{
+    GpioInit();
+    DMAInit();
+    Tim6Init(&hw->htim6);
+    Tim7Init(&hw->htim7);
+    Uart1Init(&hw->huart1);
+}
+
+void InitAnalogPeripherals(HwInstances *hw)
+{
+    Dac3Init(&hw->hdac3);
+    Dac4Init(&hw->hdac4);
+    Opamp1Init(&hw->hopamp1);
+    Opamp3Init(&hw->hopamp3);
+    Opamp4Init(&hw->hopamp4);
+    Opamp5Init(&hw->hopamp5);
+    Adc1Init(&hw->hadc1);
+    Adc2Init(&hw->hadc2);
+    Adc3Init(&hw->hadc3);
+    Adc5Init(&hw->hadc5);
+}
+
+inline void HandleAdcDmaIrq(ADC_HandleTypeDef *hadc)
+{
+    HAL_DMA_IRQHandler(hadc->DMA_Handle);
+}
+} // namespace
+
 // Singleton implementation
 HwInstances *GetHwInstances(void)
 {
@@ -17,21 +48,8 @@ bool InitHw(void)
     HAL_Init();
     SystemClock_Config();
 
-    GpioInit();
-    DMAInit();
-    Tim6Init(&hw->htim6);
-    Tim7Init(&hw->htim7);
-    Uart1Init(&hw->huart1);
-    Dac3Init(&hw->hdac3);
-    Dac4Init(&hw->hdac4);
-    Opamp1Init(&hw->hopamp1);
-    Opamp3Init(&hw->hopamp3);
-    Opamp4Init(&hw->hopamp4);
-    Opamp5Init(&hw->hopamp5);
-    Adc1Init(&hw->hadc1);
-    Adc2Init(&hw->hadc2);
-    Adc3Init(&hw->hadc3);
-    Adc5Init(&hw->hadc5);
+    InitCorePeripherals(hw);
+    InitAnalogPeripherals(hw);
     MX_CORDIC_Init();
 
     return true;
@@ -42,7 +60,7 @@ void DMA1_Channel1_IRQHandler(void)
     /* USER CODE BEGIN DMA1_Channel1_IRQn 0 */
 
     /* USER CODE END DMA1_Channel1_IRQn 0 */
-    HAL_DMA_IRQHandler(GetHwInstances()->hadc1.DMA_Handle);
+    HandleAdcDmaIrq(&GetHwInstances()->hadc1);
     /* USER CODE BEGIN DMA1_Channel1_IRQn 1 */
 
     /* USER CODE END DMA1_Channel1_IRQn 1 */
@@ -56,7 +74,7 @@ void DMA1_Channel2_IRQHandler(void)
     /* USER CODE BEGIN DMA1_Channel2_IRQn 0 */
 
     /* USER CODE END DMA1_Channel2_IRQn 0 */
-    HAL_DMA_IRQHandler(GetHwInstances()->hadc2.DMA_Handle);
+    HandleAdcDmaIrq(&GetHwInstances()->hadc2);
     /* USER CODE BEGIN DMA1_Channel2_IRQn 1 */
 
     /* USER CODE END DMA1_Channel2_IRQn 1 */
@@ -70,7 +88,7 @@ void DMA1_Channel3_IRQHandler(void)
     /* USER CODE BEGIN DMA1_Channel3_IRQn 0 */
 
     /* USER CODE END DMA1_Channel3_IRQn 0 */
-    HAL_DMA_IRQHandler(GetHwInstances()->hadc3.DMA_Handle);
+    HandleAdcDmaIrq(&GetHwInstances()->hadc3);
     /* USER CODE BEGIN DMA1_Channel3_IRQn 1 */
 
     /* USER CODE END DMA1_Channel3_IRQn 1 */
@@ -84,7 +102,7 @@ void DMA1_Channel4_IRQHandler(void)
     /* USER CODE BEGIN DMA1_Channel4_IRQn 0 */
 
     /* USER CODE END DMA1_Channel4_IRQn 0 */
-    HAL_DMA_IRQHandler(GetHwInstances()->hadc5.DMA_Handle);
+    HandleAdcDmaIrq(&GetHwInstances()->hadc5);
     /* USER CODE BEGIN DMA1_Channel4_IRQn 1 */
 
     /* USER CODE END DMA1_Channel4_IRQn 1 */
