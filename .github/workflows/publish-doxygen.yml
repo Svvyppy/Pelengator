@@ -28,22 +28,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Build devcontainer image
+        run: docker build -t peleng-devcontainer -f .devcontainer/Dockerfile .devcontainer
+
+      - name: Build docs target inside devcontainer
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cmake \
-            make \
-            doxygen \
-            graphviz \
-            gcc-arm-none-eabi \
-            binutils-arm-none-eabi
-
-      - name: Configure CMake
-        run: cmake --preset Debug
-
-      - name: Build docs target
-        run: cmake --build --preset Debug --target docs
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -v "${{ github.workspace }}:/workspaces/Peleng" \
+            -w /workspaces/Peleng \
+            peleng-devcontainer \
+            bash -lc '
+              cmake --preset Debug &&
+              cmake --build --preset Debug --target docs
+            '
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

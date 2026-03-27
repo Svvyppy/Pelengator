@@ -17,25 +17,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install toolchain
+      - name: Build devcontainer image
+        run: docker build -t peleng-devcontainer -f .devcontainer/Dockerfile .devcontainer
+
+      - name: Build firmware inside devcontainer
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cmake \
-            make \
-            gcc-arm-none-eabi \
-            binutils-arm-none-eabi
-
-      - name: Configure CMake
-        run: cmake --preset Release
-
-      - name: Build firmware
-        run: cmake --build --preset Release -j
-
-      - name: Create HEX and BIN
-        run: |
-          arm-none-eabi-objcopy -O ihex build/Release/Peleng.elf build/Release/Peleng.hex
-          arm-none-eabi-objcopy -O binary build/Release/Peleng.elf build/Release/Peleng.bin
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -v "${{ github.workspace }}:/workspaces/Peleng" \
+            -w /workspaces/Peleng \
+            peleng-devcontainer \
+            bash -lc '
+              cmake --preset Release &&
+              cmake --build --preset Release -j &&
+              arm-none-eabi-objcopy -O ihex build/Release/Peleng.elf build/Release/Peleng.hex &&
+              arm-none-eabi-objcopy -O binary build/Release/Peleng.elf build/Release/Peleng.bin
+            '
 
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4

@@ -192,11 +192,13 @@ Repository includes two workflows:
 
 - `.github/workflows/ci-release.yml`
   - builds firmware on each `push` and `pull_request`
+  - runs build inside Docker container created from `.devcontainer/Dockerfile`
   - publishes build artifacts (`.elf`, `.map`, `.hex`, `.bin`)
   - on tags matching `v*` creates/updates GitHub Release and attaches
     firmware artifacts plus source archives (`.zip`, `.tar.gz`)
 - `.github/workflows/publish-doxygen.yml`
   - builds docs on `push` to `master` / `main`
+  - runs docs generation inside Docker container created from `.devcontainer/Dockerfile`
   - deploys generated Doxygen HTML to GitHub Pages
 
 Release flow:
