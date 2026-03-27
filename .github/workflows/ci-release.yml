@@ -34,11 +34,10 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .devcontainer
-          file: Dockerfile
+          file: .devcontainer/Dockerfile
           load: true
           tags: peleng-devcontainer:ci
           cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Build firmware inside devcontainer
         run: |

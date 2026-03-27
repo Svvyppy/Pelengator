@@ -34,11 +34,10 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .devcontainer
-          file: Dockerfile
+          file: .devcontainer/Dockerfile
           load: true
           tags: peleng-devcontainer:ci
           cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Generate compile commands in devcontainer
         run: |
@@ -94,6 +93,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Cache host test build
         uses: actions/cache@v4
