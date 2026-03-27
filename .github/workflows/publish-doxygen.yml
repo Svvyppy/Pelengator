@@ -30,16 +30,34 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Restore Debug build cache
+        uses: actions/cache@v4
+        with:
+          path: build/Debug
+          key: ${{ runner.os }}-debug-build-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', '.devcontainer/Dockerfile', '.gitmodules', 'st_gen/toolchein/gcc-arm-none-eabi.cmake', 'src/**', 'Drivers/**') }}
+          restore-keys: |
+            ${{ runner.os }}-debug-build-
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build devcontainer image
-        run: docker build -t peleng-devcontainer -f .devcontainer/Dockerfile .devcontainer
+        uses: docker/build-push-action@v6
+        with:
+          context: .devcontainer
+          file: Dockerfile
+          load: true
+          tags: peleng-devcontainer:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build docs target inside devcontainer
         run: |
           docker run --rm \
             --user "$(id -u):$(id -g)" \
-            -v "${{ github.workspace }}:/workspaces/Peleng" \
-            -w /workspaces/Peleng \
-            peleng-devcontainer \
+            -v "${{ github.workspace }}:${{ github.workspace }}" \
+            -w "${{ github.workspace }}" \
+            peleng-devcontainer:ci \
             bash -lc '
               cmake --preset Debug &&
               cmake --build --preset Debug --target docs

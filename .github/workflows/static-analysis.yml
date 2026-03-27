@@ -1,0 +1,113 @@
+name: Static Analysis
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: clang-tidy and cppcheck
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Restore Debug build cache
+        uses: actions/cache@v4
+        with:
+          path: build/Debug
+          key: ${{ runner.os }}-debug-build-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', '.devcontainer/Dockerfile', '.gitmodules', 'st_gen/toolchein/gcc-arm-none-eabi.cmake', 'src/**', 'tests/**', 'Drivers/**') }}
+          restore-keys: |
+            ${{ runner.os }}-debug-build-
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build devcontainer image
+        uses: docker/build-push-action@v6
+        with:
+          context: .devcontainer
+          file: Dockerfile
+          load: true
+          tags: peleng-devcontainer:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Generate compile commands in devcontainer
+        run: |
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -v "${{ github.workspace }}:${{ github.workspace }}" \
+            -w "${{ github.workspace }}" \
+            peleng-devcontainer:ci \
+            bash -lc 'cmake --preset Debug'
+
+      - name: Install analysis tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang-tidy cppcheck
+
+      - name: Run clang-tidy
+        run: |
+          mapfile -t TIDY_FILES < <(
+            find src -type f \( -name '*.cpp' -o -name '*.c' \) \
+              | grep -v '/stm32_gen/'
+          )
+
+          if [ "${#TIDY_FILES[@]}" -eq 0 ]; then
+            echo "No files selected for clang-tidy"
+            exit 1
+          fi
+
+          clang-tidy -p build/Debug "${TIDY_FILES[@]}"
+
+      - name: Run cppcheck
+        run: |
+          mapfile -t CPPCHECK_FILES < <(
+            find src -type f \( -name '*.cpp' -o -name '*.c' \) \
+              | grep -v '/stm32_gen/'
+          )
+
+          if [ "${#CPPCHECK_FILES[@]}" -eq 0 ]; then
+            echo "No files selected for cppcheck"
+            exit 1
+          fi
+
+          cppcheck \
+            --project=build/Debug/compile_commands.json \
+            --enable=warning,style,performance,portability \
+            --inline-suppr \
+            --error-exitcode=1 \
+            "${CPPCHECK_FILES[@]}"
+
+  host-tests:
+    name: Host DSP Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache host test build
+        uses: actions/cache@v4
+        with:
+          path: build/tests
+          key: ${{ runner.os }}-host-tests-${{ hashFiles('tests/**', 'src/peleng/**', 'CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-host-tests-
+
+      - name: Configure host tests
+        run: cmake -S tests -B build/tests -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build host tests
+        run: cmake --build build/tests -j
+
+      - name: Run host tests
+        run: ctest --test-dir build/tests --output-on-failure

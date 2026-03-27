@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Peleng.hpp"
+#include "DelayEstimator.hpp"
 
 bool SendDelayTelemetryUart(const DelayMeasurements &delays);
 void UartTelemetryProcess(void);
