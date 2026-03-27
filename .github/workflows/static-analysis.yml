@@ -70,23 +70,12 @@ jobs:
 
       - name: Run cppcheck
         run: |
-          mapfile -t CPPCHECK_FILES < <(
-            printf '%s\n' \
-              src/peleng/Filter.cpp \
-              src/peleng/DelayEstimator.cpp
-          )
-
-          if [ "${#CPPCHECK_FILES[@]}" -eq 0 ]; then
-            echo "No files selected for cppcheck"
-            exit 1
-          fi
-
           cppcheck \
             --project=build/tests/compile_commands.json \
             --enable=warning,style,performance,portability \
+            --file-filter=src/peleng/* \
             --inline-suppr \
-            --error-exitcode=1 \
-            "${CPPCHECK_FILES[@]}"
+            --error-exitcode=1
 
   host-tests:
     name: Host DSP Tests
