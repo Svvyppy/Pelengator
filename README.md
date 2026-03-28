@@ -96,8 +96,8 @@ cmake --preset Debug -DBOARD=devboard
 
 ### Host-side DSP tests
 
-The `tests/` directory contains a separate host build for the pure DSP pieces:
-`Filter` and delay estimation.
+The `tests/` directory contains host DSP tests for `Filter` and delay
+estimation built with `Catch2`.
 
 Run them from the repository root:
 
@@ -107,12 +107,40 @@ cmake --build build/tests -j
 ctest --test-dir build/tests --output-on-failure
 ```
 
-This test binary runs on the host PC and does not need HAL or a target toolchain.
+Useful filters:
+
+```bash
+ctest --test-dir build/tests -R filter --output-on-failure
+ctest --test-dir build/tests -R delay --output-on-failure
+```
+
+This test binary runs on the host PC and does not need HAL or a target
+toolchain.
+
+### Renode system smoke-test
+
+`ctest` also provides `peleng_renode_smoke`, a system-level smoke-test that
+boots firmware in Renode for a short virtual time window.
+
+By default it uses `build/Debug/Peleng.elf`. If Renode or ELF is missing, the
+test is skipped.
+
+```bash
+cmake --preset Debug
+cmake --build --preset Debug -j
+cmake -S tests -B build/tests -DCMAKE_BUILD_TYPE=Debug \
+  -DPELENG_FIRMWARE_ELF="$(pwd)/build/Debug/Peleng.elf"
+cmake --build build/tests -j
+ctest --test-dir build/tests -R renode --output-on-failure
+```
+
+You can override the platform description with
+`-DPELENG_RENODE_PLATFORM=@path/to/platform.repl`.
 
 ### Toolchain notes
 
 - GCC ARM Embedded is configured via:
-  - `st_gen/toolchein/gcc-arm-none-eabi.cmake`
+  - `st_gen/toolchain/gcc-arm-none-eabi.cmake`
 - CMSIS-DSP is configured through CMake and built as a subdirectory library.
 - `BOARD` selects the platform folder under `src/platforms/`.
 
@@ -144,9 +172,10 @@ After any DSP or platform change:
 
 1. Build (`cmake --build --preset Debug`) must pass.
 2. Host tests (`ctest --test-dir build/tests --output-on-failure`) must pass.
-3. Verify ADC DMA half/full callbacks are firing.
-4. Verify UART telemetry stream continuity (no long pauses under load).
-5. Inject known inter-channel delay and check `d12/d13/d14` sign and magnitude.
+3. Renode smoke-test (`ctest --test-dir build/tests -R renode --output-on-failure`) should pass if Renode is installed.
+4. Verify ADC DMA half/full callbacks are firing.
+5. Verify UART telemetry stream continuity (no long pauses under load).
+6. Inject known inter-channel delay and check `d12/d13/d14` sign and magnitude.
 
 ## 9. Recommended Next Improvements
 
