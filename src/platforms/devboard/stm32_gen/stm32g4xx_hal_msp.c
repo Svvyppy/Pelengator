@@ -12,6 +12,10 @@ void HAL_MspInit(void)
 
 static uint32_t HAL_RCC_ADC12_CLK_ENABLED = 0;
 static uint32_t HAL_RCC_ADC345_CLK_ENABLED = 0;
+static DMA_HandleTypeDef hdma_adc1;
+static DMA_HandleTypeDef hdma_adc2;
+static DMA_HandleTypeDef hdma_adc3;
+static DMA_HandleTypeDef hdma_adc5;
 
 void HAL_ADC_MspInit(ADC_HandleTypeDef *adcHandle)
 {
@@ -31,21 +35,21 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef *adcHandle)
             __HAL_RCC_ADC12_CLK_ENABLE();
         }
 
-        adcHandle->DMA_Handle->Instance = DMA1_Channel1;
-        adcHandle->DMA_Handle->Init.Request = DMA_REQUEST_ADC1;
-        adcHandle->DMA_Handle->Init.Direction = DMA_PERIPH_TO_MEMORY;
-        adcHandle->DMA_Handle->Init.PeriphInc = DMA_PINC_DISABLE;
-        adcHandle->DMA_Handle->Init.MemInc = DMA_MINC_ENABLE;
-        adcHandle->DMA_Handle->Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
-        adcHandle->DMA_Handle->Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
-        adcHandle->DMA_Handle->Init.Mode = DMA_CIRCULAR;
-        adcHandle->DMA_Handle->Init.Priority = DMA_PRIORITY_LOW;
-        if (HAL_DMA_Init(adcHandle->DMA_Handle) != HAL_OK)
+        hdma_adc1.Instance = DMA1_Channel1;
+        hdma_adc1.Init.Request = DMA_REQUEST_ADC1;
+        hdma_adc1.Init.Direction = DMA_PERIPH_TO_MEMORY;
+        hdma_adc1.Init.PeriphInc = DMA_PINC_DISABLE;
+        hdma_adc1.Init.MemInc = DMA_MINC_ENABLE;
+        hdma_adc1.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
+        hdma_adc1.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
+        hdma_adc1.Init.Mode = DMA_CIRCULAR;
+        hdma_adc1.Init.Priority = DMA_PRIORITY_LOW;
+        if (HAL_DMA_Init(&hdma_adc1) != HAL_OK)
         {
             Error_Handler();
         }
 
-        __HAL_LINKDMA(adcHandle, DMA_Handle, *adcHandle->DMA_Handle);
+        __HAL_LINKDMA(adcHandle, DMA_Handle, hdma_adc1);
     }
     else if (adcHandle->Instance == ADC2)
     {
@@ -62,21 +66,21 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef *adcHandle)
             __HAL_RCC_ADC12_CLK_ENABLE();
         }
 
-        adcHandle->DMA_Handle->Instance = DMA1_Channel2;
-        adcHandle->DMA_Handle->Init.Request = DMA_REQUEST_ADC2;
-        adcHandle->DMA_Handle->Init.Direction = DMA_PERIPH_TO_MEMORY;
-        adcHandle->DMA_Handle->Init.PeriphInc = DMA_PINC_DISABLE;
-        adcHandle->DMA_Handle->Init.MemInc = DMA_MINC_ENABLE;
-        adcHandle->DMA_Handle->Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
-        adcHandle->DMA_Handle->Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
-        adcHandle->DMA_Handle->Init.Mode = DMA_CIRCULAR;
-        adcHandle->DMA_Handle->Init.Priority = DMA_PRIORITY_LOW;
-        if (HAL_DMA_Init(adcHandle->DMA_Handle) != HAL_OK)
+        hdma_adc2.Instance = DMA1_Channel2;
+        hdma_adc2.Init.Request = DMA_REQUEST_ADC2;
+        hdma_adc2.Init.Direction = DMA_PERIPH_TO_MEMORY;
+        hdma_adc2.Init.PeriphInc = DMA_PINC_DISABLE;
+        hdma_adc2.Init.MemInc = DMA_MINC_ENABLE;
+        hdma_adc2.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
+        hdma_adc2.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
+        hdma_adc2.Init.Mode = DMA_CIRCULAR;
+        hdma_adc2.Init.Priority = DMA_PRIORITY_LOW;
+        if (HAL_DMA_Init(&hdma_adc2) != HAL_OK)
         {
             Error_Handler();
         }
 
-        __HAL_LINKDMA(adcHandle, DMA_Handle, *adcHandle->DMA_Handle);
+        __HAL_LINKDMA(adcHandle, DMA_Handle, hdma_adc2);
     }
     else if (adcHandle->Instance == ADC3)
     {
@@ -92,21 +96,21 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef *adcHandle)
             __HAL_RCC_ADC345_CLK_ENABLE();
         }
 
-        adcHandle->DMA_Handle->Instance = DMA1_Channel3;
-        adcHandle->DMA_Handle->Init.Request = DMA_REQUEST_ADC3;
-        adcHandle->DMA_Handle->Init.Direction = DMA_PERIPH_TO_MEMORY;
-        adcHandle->DMA_Handle->Init.PeriphInc = DMA_PINC_DISABLE;
-        adcHandle->DMA_Handle->Init.MemInc = DMA_MINC_ENABLE;
-        adcHandle->DMA_Handle->Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
-        adcHandle->DMA_Handle->Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
-        adcHandle->DMA_Handle->Init.Mode = DMA_CIRCULAR;
-        adcHandle->DMA_Handle->Init.Priority = DMA_PRIORITY_LOW;
-        if (HAL_DMA_Init(adcHandle->DMA_Handle) != HAL_OK)
+        hdma_adc3.Instance = DMA1_Channel3;
+        hdma_adc3.Init.Request = DMA_REQUEST_ADC3;
+        hdma_adc3.Init.Direction = DMA_PERIPH_TO_MEMORY;
+        hdma_adc3.Init.PeriphInc = DMA_PINC_DISABLE;
+        hdma_adc3.Init.MemInc = DMA_MINC_ENABLE;
+        hdma_adc3.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
+        hdma_adc3.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
+        hdma_adc3.Init.Mode = DMA_CIRCULAR;
+        hdma_adc3.Init.Priority = DMA_PRIORITY_LOW;
+        if (HAL_DMA_Init(&hdma_adc3) != HAL_OK)
         {
             Error_Handler();
         }
 
-        __HAL_LINKDMA(adcHandle, DMA_Handle, *adcHandle->DMA_Handle);
+        __HAL_LINKDMA(adcHandle, DMA_Handle, hdma_adc3);
     }
     else if (adcHandle->Instance == ADC5)
     {
@@ -123,21 +127,21 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef *adcHandle)
             __HAL_RCC_ADC345_CLK_ENABLE();
         }
 
-        adcHandle->DMA_Handle->Instance = DMA1_Channel4;
-        adcHandle->DMA_Handle->Init.Request = DMA_REQUEST_ADC5;
-        adcHandle->DMA_Handle->Init.Direction = DMA_PERIPH_TO_MEMORY;
-        adcHandle->DMA_Handle->Init.PeriphInc = DMA_PINC_DISABLE;
-        adcHandle->DMA_Handle->Init.MemInc = DMA_MINC_ENABLE;
-        adcHandle->DMA_Handle->Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
-        adcHandle->DMA_Handle->Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
-        adcHandle->DMA_Handle->Init.Mode = DMA_CIRCULAR;
-        adcHandle->DMA_Handle->Init.Priority = DMA_PRIORITY_LOW;
-        if (HAL_DMA_Init(adcHandle->DMA_Handle) != HAL_OK)
+        hdma_adc5.Instance = DMA1_Channel4;
+        hdma_adc5.Init.Request = DMA_REQUEST_ADC5;
+        hdma_adc5.Init.Direction = DMA_PERIPH_TO_MEMORY;
+        hdma_adc5.Init.PeriphInc = DMA_PINC_DISABLE;
+        hdma_adc5.Init.MemInc = DMA_MINC_ENABLE;
+        hdma_adc5.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
+        hdma_adc5.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
+        hdma_adc5.Init.Mode = DMA_CIRCULAR;
+        hdma_adc5.Init.Priority = DMA_PRIORITY_LOW;
+        if (HAL_DMA_Init(&hdma_adc5) != HAL_OK)
         {
             Error_Handler();
         }
 
-        __HAL_LINKDMA(adcHandle, DMA_Handle, *adcHandle->DMA_Handle);
+        __HAL_LINKDMA(adcHandle, DMA_Handle, hdma_adc5);
     }
 }
 

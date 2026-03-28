@@ -9,7 +9,7 @@
             "toolchainFile": "${sourceDir}/st_gen/toolchain/gcc-arm-none-eabi.cmake",
             "cacheVariables": {
                 "BOARD": "devboard",
-                "PELENG_FETCH_DEPS": "ON"
+                "PELENG_FETCH_DEPS": "OFF"
             }
         },
         {

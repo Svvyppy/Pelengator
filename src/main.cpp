@@ -24,11 +24,11 @@ int main(void)
     }
 }
 
-inline void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) { g_peleng.DmaTransferCompleteCallback(hadc); }
+extern "C" void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) { g_peleng.DmaTransferCompleteCallback(hadc); }
 
-inline void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef *hadc) { g_peleng.DmaHalfTransferCallback(hadc); }
+extern "C" void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef *hadc) { g_peleng.DmaHalfTransferCallback(hadc); }
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+extern "C" void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM15)
     {
