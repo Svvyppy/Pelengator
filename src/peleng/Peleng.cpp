@@ -1,8 +1,15 @@
 #include "Peleng.hpp"
 
+#include "UartTelemetry.hpp"
+
 Peleng::Peleng() = default;
 
-void Peleng::Init() { InitAdcs(); }
+void Peleng::Init()
+{
+    event << "Peleng Init";
+    InitAdcs();
+    event << "ADC DMA Started";
+}
 
 void Peleng::Process()
 {

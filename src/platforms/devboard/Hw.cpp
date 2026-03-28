@@ -150,3 +150,5 @@ extern "C" void TIM7_DAC_IRQHandler(void)
 
     /* USER CODE END TIM7_DAC_IRQn 1 */
 }
+
+extern "C" void USART1_IRQHandler(void) { HAL_UART_IRQHandler(&GetHwInstances()->huart1); }
