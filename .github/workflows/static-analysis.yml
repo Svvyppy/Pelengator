@@ -46,7 +46,7 @@ jobs:
             -v "${{ github.workspace }}:${{ github.workspace }}" \
             -w "${{ github.workspace }}" \
             peleng-devcontainer:ci \
-            bash -lc 'cmake -S tests -B build/tests -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON'
+            bash -lc 'cmake --fresh -S tests -B build/tests -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON'
 
       - name: Install analysis tools
         run: |
@@ -115,7 +115,7 @@ jobs:
             ${{ runner.os }}-host-tests-
 
       - name: Configure host tests
-        run: cmake -S tests -B build/tests -DCMAKE_BUILD_TYPE=Debug
+        run: cmake --fresh -S tests -B build/tests -DCMAKE_BUILD_TYPE=Debug
 
       - name: Build host tests
         run: cmake --build build/tests -j
