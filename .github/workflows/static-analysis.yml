@@ -53,8 +53,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends clang-tidy cppcheck
 
+      - name: Prepare analysis report directory
+        run: mkdir -p build/reports
+
       - name: Run clang-tidy
         run: |
+          set -o pipefail
+
           mapfile -t TIDY_FILES < <(
             printf '%s\n' \
               src/peleng/Filter.cpp \
@@ -66,7 +71,8 @@ jobs:
             exit 1
           fi
 
-          clang-tidy -p build/tests "${TIDY_FILES[@]}"
+          clang-tidy -p build/tests "${TIDY_FILES[@]}" \
+            2>&1 | tee build/reports/clang-tidy.txt
 
       - name: Run cppcheck
         run: |
@@ -76,7 +82,19 @@ jobs:
             --file-filter=src/peleng/* \
             --suppress=preprocessorErrorDirective \
             --inline-suppr \
-            --error-exitcode=1
+            --error-exitcode=1 \
+            --output-file=build/reports/cppcheck.txt
+
+      - name: Upload static analysis reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-analysis-reports
+          path: |
+            build/reports/clang-tidy.txt
+            build/reports/cppcheck.txt
+          if-no-files-found: warn
+          retention-days: 14
 
   host-tests:
     name: Host DSP Tests

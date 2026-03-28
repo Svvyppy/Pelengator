@@ -1,8 +1,8 @@
 #include "main.h"
 
 #include "Peleng.hpp"
-#include "cordic.h"
 #include "UartTelemetry.hpp"
+#include "cordic.h"
 
 Peleng g_peleng;
 
