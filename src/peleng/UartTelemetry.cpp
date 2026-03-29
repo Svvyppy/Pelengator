@@ -3,8 +3,10 @@
 #include <array>
 #include <cstdarg>
 #include <cstdio>
+#include <cstring>
 
 #include "Hw.h"
+#include "Peleng.hpp"
 #include "Pins.h"
 
 namespace
@@ -25,6 +27,7 @@ struct UartTelemetryQueue
 
 UartTelemetryQueue g_queue{};
 uint32_t g_last_alive_tick = 0U;
+uint32_t g_event_drop_count = 0U;
 
 std::size_t NextIndex(std::size_t index) { return (index + 1U) % kQueueDepth; }
 
@@ -49,19 +52,50 @@ void SetRs485DirectionTx(void) { HAL_GPIO_WritePin(TX_En_GPIO_Port, TX_En_Pin, G
 
 void SetRs485DirectionRx(void) { HAL_GPIO_WritePin(TX_En_GPIO_Port, TX_En_Pin, GPIO_PIN_RESET); }
 
-bool EnqueueFormattedMessage(const char *format, ...)
+bool IsInIsrContext(void) { return (__get_IPSR() != 0U); }
+
+uint32_t EnterCritical(void)
 {
-    if (g_queue.count >= kQueueDepth)
+    const uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    return primask;
+}
+
+void ExitCritical(uint32_t primask)
+{
+    __set_PRIMASK(primask);
+}
+
+bool EnqueueBytes(const char *payload, uint16_t payload_length)
+{
+    if (payload == nullptr || payload_length == 0U)
     {
         return false;
     }
 
+    const uint32_t primask = EnterCritical();
+    if (g_queue.count >= kQueueDepth)
+    {
+        ExitCritical(primask);
+        return false;
+    }
+
     const std::size_t slot = (g_queue.head + g_queue.count) % kQueueDepth;
-    char *const tx_buffer = g_queue.messages[slot].data();
+    std::memcpy(g_queue.messages[slot].data(), payload, payload_length);
+    g_queue.lengths[slot] = payload_length;
+    ++g_queue.count;
+    ExitCritical(primask);
+
+    return true;
+}
+
+bool EnqueueFormattedMessage(const char *format, ...)
+{
+    char local_buffer[kMessageCapacity] = {};
 
     va_list args;
     va_start(args, format);
-    const int formatted_length = std::vsnprintf(tx_buffer, kMessageCapacity, format, args);
+    const int formatted_length = std::vsnprintf(local_buffer, kMessageCapacity, format, args);
     va_end(args);
 
     const uint16_t payload_length = NormalizeLength(formatted_length);
@@ -70,9 +104,34 @@ bool EnqueueFormattedMessage(const char *format, ...)
         return false;
     }
 
-    g_queue.lengths[slot] = payload_length;
-    ++g_queue.count;
-    return true;
+    return EnqueueBytes(local_buffer, payload_length);
+}
+
+bool EnqueueEventMessage(const char *message)
+{
+    if (message == nullptr)
+    {
+        return false;
+    }
+
+    char local_buffer[kMessageCapacity] = {};
+    uint16_t len = 0U;
+
+    constexpr char kPrefix[] = "EVT ";
+    for (std::size_t i = 0U; i < sizeof(kPrefix) - 1U; ++i)
+    {
+        local_buffer[len++] = kPrefix[i];
+    }
+
+    while (*message != '\0' && len < static_cast<uint16_t>(kMessageCapacity - 3U))
+    {
+        local_buffer[len++] = *message++;
+    }
+
+    local_buffer[len++] = '\r';
+    local_buffer[len++] = '\n';
+
+    return EnqueueBytes(local_buffer, len);
 }
 
 void QueueAliveMessageIfDue(void)
@@ -83,7 +142,21 @@ void QueueAliveMessageIfDue(void)
         return;
     }
 
-    if (EnqueueFormattedMessage("ALIVE t=%lu RS485=TX\\r\\n", static_cast<unsigned long>(now)))
+    uint32_t drops = 0U;
+    std::size_t queued = 0U;
+    const uint32_t dma_half = PelengGetDmaHalfCount();
+    const uint32_t dma_full = PelengGetDmaFullCount();
+    {
+        const uint32_t primask = EnterCritical();
+        drops = g_event_drop_count;
+        queued = g_queue.count;
+        ExitCritical(primask);
+    }
+
+    if (EnqueueFormattedMessage("ALIVE t=%lu RS485=TX q=%lu drop=%lu dmaH=%lu dmaF=%lu\\r\\n",
+                                static_cast<unsigned long>(now), static_cast<unsigned long>(queued),
+                                static_cast<unsigned long>(drops), static_cast<unsigned long>(dma_half),
+                                static_cast<unsigned long>(dma_full)))
     {
         g_last_alive_tick = now;
     }
@@ -99,35 +172,65 @@ void UartTelemetryProcess(void)
 {
     UART_HandleTypeDef *huart = &GetHwInstances()->huart1;
 
-    if (g_queue.tx_active)
+    bool tx_completed = false;
     {
-        if (!IsTxReady(huart))
+        const uint32_t primask = EnterCritical();
+        if (g_queue.tx_active && IsTxReady(huart))
         {
-            return;
+            g_queue.head = NextIndex(g_queue.head);
+            --g_queue.count;
+            g_queue.tx_active = false;
+            tx_completed = true;
         }
+        ExitCritical(primask);
+    }
 
-        g_queue.head = NextIndex(g_queue.head);
-        --g_queue.count;
-        g_queue.tx_active = false;
+    if (tx_completed)
+    {
         SetRs485DirectionRx();
     }
 
     QueueAliveMessageIfDue();
 
-    if (g_queue.count == 0U || !IsTxReady(huart))
+    if (!IsTxReady(huart))
+    {
+        return;
+    }
+
+    const char *tx_ptr = nullptr;
+    uint16_t tx_len = 0U;
+    {
+        const uint32_t primask = EnterCritical();
+        if (!g_queue.tx_active && g_queue.count > 0U)
+        {
+            tx_ptr = g_queue.messages[g_queue.head].data();
+            tx_len = g_queue.lengths[g_queue.head];
+            g_queue.tx_active = true;
+        }
+        ExitCritical(primask);
+    }
+
+    if (tx_ptr == nullptr || tx_len == 0U)
     {
         return;
     }
 
     SetRs485DirectionTx();
-    const HAL_StatusTypeDef tx_status = HAL_UART_Transmit_IT(
-        huart, reinterpret_cast<uint8_t *>(g_queue.messages[g_queue.head].data()), g_queue.lengths[g_queue.head]);
+    const HAL_StatusTypeDef tx_status = HAL_UART_Transmit_IT(huart, reinterpret_cast<uint8_t *>(const_cast<char *>(tx_ptr)),
+                                                             tx_len);
 
     if (tx_status == HAL_OK)
     {
-        g_queue.tx_active = true;
+        return;
     }
-    else
+
+    {
+        const uint32_t primask = EnterCritical();
+        g_queue.tx_active = false;
+        ExitCritical(primask);
+    }
+
+    if (tx_status != HAL_OK)
     {
         SetRs485DirectionRx();
     }
@@ -156,24 +259,28 @@ bool SendDelayTelemetryUart(const DelayMeasurements &delays)
         return false;
     }
 
-    UartTelemetryProcess();
+    if (!IsInIsrContext())
+    {
+        UartTelemetryProcess();
+    }
     return true;
 }
 
 bool SendEventTelemetryUart(const char *message)
 {
-    if (message == nullptr)
-    {
-        return false;
-    }
-
-    const bool queued = EnqueueFormattedMessage("EVT %s\\r\\n", message);
+    const bool queued = EnqueueEventMessage(message);
     if (!queued)
     {
+        const uint32_t primask = EnterCritical();
+        ++g_event_drop_count;
+        ExitCritical(primask);
         return false;
     }
 
-    UartTelemetryProcess();
+    if (!IsInIsrContext())
+    {
+        UartTelemetryProcess();
+    }
     return true;
 }
 

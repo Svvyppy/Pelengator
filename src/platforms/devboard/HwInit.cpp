@@ -27,7 +27,7 @@ void ConfigureAdcBase(ADC_HandleTypeDef *hadc, ADC_TypeDef *instance)
     hadc->Init.DiscontinuousConvMode = DISABLE;
     hadc->Init.ExternalTrigConv = ADC_EXTERNALTRIG_T6_TRGO;
     hadc->Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
-    hadc->Init.DMAContinuousRequests = DISABLE;
+    hadc->Init.DMAContinuousRequests = ENABLE;
     hadc->Init.Overrun = ADC_OVR_DATA_PRESERVED;
     hadc->Init.OversamplingMode = DISABLE;
 

@@ -2,6 +2,12 @@
 
 #include "UartTelemetry.hpp"
 
+namespace
+{
+volatile uint32_t g_dma_half_count = 0U;
+volatile uint32_t g_dma_full_count = 0U;
+}
+
 Peleng::Peleng() = default;
 
 void Peleng::Init()
@@ -28,22 +34,23 @@ void Peleng::Process()
 
 void Peleng::DmaHalfTransferCallback(ADC_HandleTypeDef *hadc)
 {
-    (void)hadc;
-    for (std::size_t channel = 0U; channel < ADC_CHANNELS; ++channel)
+    if (hadc != &GetHwInstances()->hadc1)
     {
-        ConvertAdcToF32(adc_buffers_[channel].data(), work_buffers_[channel].data(), DMA_HALF_BUFFER_SIZE);
+        return;
     }
+
+    ++g_dma_half_count;
     adc_half_flag_ = true;
 }
 
 void Peleng::DmaTransferCompleteCallback(ADC_HandleTypeDef *hadc)
 {
-    (void)hadc;
-    for (std::size_t channel = 0U; channel < ADC_CHANNELS; ++channel)
+    if (hadc != &GetHwInstances()->hadc1)
     {
-        ConvertAdcToF32(adc_buffers_[channel].data() + DMA_HALF_BUFFER_SIZE,
-                        work_buffers_[channel].data() + DMA_HALF_BUFFER_SIZE, DMA_HALF_BUFFER_SIZE);
+        return;
     }
+
+    ++g_dma_full_count;
     adc_full_flag_ = true;
 }
 
@@ -62,6 +69,11 @@ bool Peleng::TryGetLatestDelays(DelayMeasurements *out)
 void Peleng::InitAdcs()
 {
     HAL_TIM_Base_Stop(&GetHwInstances()->htim6);
+    HAL_OPAMP_Start(&GetHwInstances()->hopamp1);
+    HAL_OPAMP_Start(&GetHwInstances()->hopamp3);
+    HAL_OPAMP_Start(&GetHwInstances()->hopamp4);
+    HAL_OPAMP_Start(&GetHwInstances()->hopamp5);
+
     HAL_ADC_Start_DMA(&GetHwInstances()->hadc1, adc_buffers_[0].data(), DMA_FULL_BUFFER_SIZE);
     HAL_ADC_Start_DMA(&GetHwInstances()->hadc2, adc_buffers_[1].data(), DMA_FULL_BUFFER_SIZE);
     HAL_ADC_Start_DMA(&GetHwInstances()->hadc3, adc_buffers_[2].data(), DMA_FULL_BUFFER_SIZE);
@@ -73,6 +85,8 @@ void Peleng::ProcessHalfTransfer(std::size_t start_index)
 {
     for (std::size_t channel = 0U; channel < ADC_CHANNELS; ++channel)
     {
+        ConvertAdcToF32(adc_buffers_[channel].data() + start_index, work_buffers_[channel].data() + start_index,
+                        DMA_HALF_BUFFER_SIZE);
         envelope_filters_[channel].ApplyEnvelope(work_buffers_[channel].data() + start_index,
                                                  envelope_buffers_[channel].data(), DMA_HALF_BUFFER_SIZE);
     }
@@ -95,3 +109,7 @@ void Peleng::ConvertAdcToF32(const uint32_t *source, float *destination, std::si
         destination[index] = static_cast<float>(scaled);
     }
 }
+
+uint32_t PelengGetDmaHalfCount(void) { return g_dma_half_count; }
+
+uint32_t PelengGetDmaFullCount(void) { return g_dma_full_count; }

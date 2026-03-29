@@ -11,6 +11,9 @@ int main(void)
     InitHw();
     g_peleng.Init();
 
+    uint32_t delay_frame_decimator = 0U;
+    constexpr uint32_t kDelayTxEveryNFrames = 16U;
+
     while (1)
     {
         UartTelemetryProcess();
@@ -19,7 +22,10 @@ int main(void)
         DelayMeasurements delays;
         if (g_peleng.TryGetLatestDelays(&delays))
         {
-            (void)SendDelayTelemetryUart(delays);
+            if ((++delay_frame_decimator % kDelayTxEveryNFrames) == 0U)
+            {
+                (void)SendDelayTelemetryUart(delays);
+            }
         }
     }
 }

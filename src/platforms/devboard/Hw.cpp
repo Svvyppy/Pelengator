@@ -42,6 +42,12 @@ bool InitHw(void)
 {
     HwInstances *hw = GetHwInstances();
 
+    // Force vector table to application flash. This keeps IRQ/exception dispatch
+    // correct even when debug reset path leaves memory remap in System Memory mode.
+    SCB->VTOR = FLASH_BASE;
+    __DSB();
+    __ISB();
+
     HAL_Init();
     SystemClock_Config();
 
