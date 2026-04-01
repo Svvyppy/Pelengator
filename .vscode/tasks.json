@@ -1,0 +1,44 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Run Renode",
+            "type": "shell",
+            "command": "${workspaceFolder}/renode/run_renode_debug.sh",
+            "args": [
+                "${workspaceFolder}/build/Debug/Peleng.elf",
+                "${workspaceFolder}/tests/renode/data"
+            ],
+            "isBackground": true,
+            "problemMatcher": {
+                "source": "Renode",
+                "pattern": {
+                    "regexp": ""
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "Renode, version .*",
+                    "endsPattern": ".*GDB server with all CPUs started on port.*"
+                }
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Close Renode",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-lc",
+                "if [ -f \"${workspaceFolder}/renode/.renode-debug.pid\" ]; then kill $(cat \"${workspaceFolder}/renode/.renode-debug.pid\") 2>/dev/null || true; fi"
+            ],
+            "presentation": {
+                "reveal": "never",
+                "panel": "shared"
+            }
+        }
+    ]
+}

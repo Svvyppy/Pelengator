@@ -23,7 +23,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/Debug
-          key: ${{ runner.os }}-debug-build-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', '.devcontainer/Dockerfile', '.gitmodules', 'st_gen/toolchein/gcc-arm-none-eabi.cmake', 'src/**', 'tests/**', 'Drivers/**') }}
+          key: ${{ runner.os }}-debug-build-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', '.devcontainer/Dockerfile', '.gitmodules', 'st_gen/toolchain/gcc-arm-none-eabi.cmake', 'src/**', 'tests/**', 'Drivers/**') }}
           restore-keys: |
             ${{ runner.os }}-debug-build-
 
@@ -46,15 +46,20 @@ jobs:
             -v "${{ github.workspace }}:${{ github.workspace }}" \
             -w "${{ github.workspace }}" \
             peleng-devcontainer:ci \
-            bash -lc 'cmake -S tests -B build/tests -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON'
+            bash -lc 'cmake --fresh -S tests -B build/tests -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON'
 
       - name: Install analysis tools
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends clang-tidy cppcheck
 
+      - name: Prepare analysis report directory
+        run: mkdir -p build/reports
+
       - name: Run clang-tidy
         run: |
+          set -o pipefail
+
           mapfile -t TIDY_FILES < <(
             printf '%s\n' \
               src/peleng/Filter.cpp \
@@ -66,7 +71,8 @@ jobs:
             exit 1
           fi
 
-          clang-tidy -p build/tests "${TIDY_FILES[@]}"
+          clang-tidy -p build/tests "${TIDY_FILES[@]}" \
+            2>&1 | tee build/reports/clang-tidy.txt
 
       - name: Run cppcheck
         run: |
@@ -76,7 +82,19 @@ jobs:
             --file-filter=src/peleng/* \
             --suppress=preprocessorErrorDirective \
             --inline-suppr \
-            --error-exitcode=1
+            --error-exitcode=1 \
+            --output-file=build/reports/cppcheck.txt
+
+      - name: Upload static analysis reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-analysis-reports
+          path: |
+            build/reports/clang-tidy.txt
+            build/reports/cppcheck.txt
+          if-no-files-found: warn
+          retention-days: 14
 
   host-tests:
     name: Host DSP Tests
@@ -97,7 +115,7 @@ jobs:
             ${{ runner.os }}-host-tests-
 
       - name: Configure host tests
-        run: cmake -S tests -B build/tests -DCMAKE_BUILD_TYPE=Debug
+        run: cmake --fresh -S tests -B build/tests -DCMAKE_BUILD_TYPE=Debug
 
       - name: Build host tests
         run: cmake --build build/tests -j

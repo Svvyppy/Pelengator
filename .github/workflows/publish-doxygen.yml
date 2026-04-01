@@ -34,7 +34,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/Debug
-          key: ${{ runner.os }}-debug-build-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', '.devcontainer/Dockerfile', '.gitmodules', 'st_gen/toolchein/gcc-arm-none-eabi.cmake', 'src/**', 'Drivers/**') }}
+          key: ${{ runner.os }}-debug-build-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', '.devcontainer/Dockerfile', '.gitmodules', 'st_gen/toolchain/gcc-arm-none-eabi.cmake', 'src/**', 'Drivers/**') }}
           restore-keys: |
             ${{ runner.os }}-debug-build-
 
@@ -58,7 +58,7 @@ jobs:
             -w "${{ github.workspace }}" \
             peleng-devcontainer:ci \
             bash -lc '
-              cmake --preset Debug &&
+              cmake --preset Debug --fresh &&
               cmake --build --preset Debug --target docs
             '
 

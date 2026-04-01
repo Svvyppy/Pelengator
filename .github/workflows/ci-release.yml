@@ -23,7 +23,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/Release
-          key: ${{ runner.os }}-release-build-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', '.devcontainer/Dockerfile', '.gitmodules', 'st_gen/toolchein/gcc-arm-none-eabi.cmake', 'src/**', 'Drivers/**') }}
+          key: ${{ runner.os }}-release-build-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', '.devcontainer/Dockerfile', '.gitmodules', 'st_gen/toolchain/gcc-arm-none-eabi.cmake', 'src/**', 'Drivers/**') }}
           restore-keys: |
             ${{ runner.os }}-release-build-
 
@@ -47,7 +47,7 @@ jobs:
             -w "${{ github.workspace }}" \
             peleng-devcontainer:ci \
             bash -lc '
-              cmake --preset Release &&
+              cmake --preset Release --fresh &&
               cmake --build --preset Release -j &&
               arm-none-eabi-objcopy -O ihex build/Release/Peleng.elf build/Release/Peleng.hex &&
               arm-none-eabi-objcopy -O binary build/Release/Peleng.elf build/Release/Peleng.bin

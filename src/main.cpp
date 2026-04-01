@@ -1,8 +1,8 @@
 #include "main.h"
 
 #include "Peleng.hpp"
-#include "cordic.h"
 #include "UartTelemetry.hpp"
+#include "cordic.h"
 
 Peleng g_peleng;
 
@@ -10,6 +10,9 @@ int main(void)
 {
     InitHw();
     g_peleng.Init();
+
+    uint32_t delay_frame_decimator = 0U;
+    constexpr uint32_t kDelayTxEveryNFrames = 16U;
 
     while (1)
     {
@@ -19,16 +22,19 @@ int main(void)
         DelayMeasurements delays;
         if (g_peleng.TryGetLatestDelays(&delays))
         {
-            (void)SendDelayTelemetryUart(delays);
+            if ((++delay_frame_decimator % kDelayTxEveryNFrames) == 0U)
+            {
+                (void)SendDelayTelemetryUart(delays);
+            }
         }
     }
 }
 
-inline void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) { g_peleng.DmaTransferCompleteCallback(hadc); }
+extern "C" void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) { g_peleng.DmaTransferCompleteCallback(hadc); }
 
-inline void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef *hadc) { g_peleng.DmaHalfTransferCallback(hadc); }
+extern "C" void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef *hadc) { g_peleng.DmaHalfTransferCallback(hadc); }
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+extern "C" void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM15)
     {

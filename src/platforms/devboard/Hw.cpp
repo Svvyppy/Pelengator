@@ -42,6 +42,12 @@ bool InitHw(void)
 {
     HwInstances *hw = GetHwInstances();
 
+    // Force vector table to application flash. This keeps IRQ/exception dispatch
+    // correct even when debug reset path leaves memory remap in System Memory mode.
+    SCB->VTOR = FLASH_BASE;
+    __DSB();
+    __ISB();
+
     HAL_Init();
     SystemClock_Config();
 
@@ -52,7 +58,7 @@ bool InitHw(void)
     return true;
 }
 
-void DMA1_Channel1_IRQHandler(void)
+extern "C" void DMA1_Channel1_IRQHandler(void)
 {
     /* USER CODE BEGIN DMA1_Channel1_IRQn 0 */
 
@@ -66,7 +72,7 @@ void DMA1_Channel1_IRQHandler(void)
 /**
  * @brief This function handles DMA1 channel2 global interrupt.
  */
-void DMA1_Channel2_IRQHandler(void)
+extern "C" void DMA1_Channel2_IRQHandler(void)
 {
     /* USER CODE BEGIN DMA1_Channel2_IRQn 0 */
 
@@ -80,7 +86,7 @@ void DMA1_Channel2_IRQHandler(void)
 /**
  * @brief This function handles DMA1 channel3 global interrupt.
  */
-void DMA1_Channel3_IRQHandler(void)
+extern "C" void DMA1_Channel3_IRQHandler(void)
 {
     /* USER CODE BEGIN DMA1_Channel3_IRQn 0 */
 
@@ -94,7 +100,7 @@ void DMA1_Channel3_IRQHandler(void)
 /**
  * @brief This function handles DMA1 channel4 global interrupt.
  */
-void DMA1_Channel4_IRQHandler(void)
+extern "C" void DMA1_Channel4_IRQHandler(void)
 {
     /* USER CODE BEGIN DMA1_Channel4_IRQn 0 */
 
@@ -108,7 +114,7 @@ void DMA1_Channel4_IRQHandler(void)
 /**
  * @brief This function handles TIM1 break interrupt and TIM15 global interrupt.
  */
-void TIM1_BRK_TIM15_IRQHandler(void)
+extern "C" void TIM1_BRK_TIM15_IRQHandler(void)
 {
     /* USER CODE BEGIN TIM1_BRK_TIM15_IRQn 0 */
 
@@ -123,7 +129,7 @@ void TIM1_BRK_TIM15_IRQHandler(void)
  * @brief This function handles TIM6 global interrupt, DAC1 and DAC3 channel
  * underrun error interrupts.
  */
-void TIM6_DAC_IRQHandler(void)
+extern "C" void TIM6_DAC_IRQHandler(void)
 {
     /* USER CODE BEGIN TIM6_DAC_IRQn 0 */
 
@@ -139,7 +145,7 @@ void TIM6_DAC_IRQHandler(void)
  * @brief This function handles TIM7 global interrupt, DAC2 and DAC4 channel
  * underrun error interrupts.
  */
-void TIM7_DAC_IRQHandler(void)
+extern "C" void TIM7_DAC_IRQHandler(void)
 {
     /* USER CODE BEGIN TIM7_DAC_IRQn 0 */
 
@@ -150,3 +156,5 @@ void TIM7_DAC_IRQHandler(void)
 
     /* USER CODE END TIM7_DAC_IRQn 1 */
 }
+
+extern "C" void USART1_IRQHandler(void) { HAL_UART_IRQHandler(&GetHwInstances()->huart1); }

@@ -1,0 +1,18 @@
+include @RENODE_RUNTIME_SCRIPT@
+
+mach create "Peleng"
+machine LoadPlatformDescription @RENODE_PLATFORM@
+
+sysbus LoadELF @FIRMWARE_ELF@
+sysbus.cpu VectorTableOffset 0x08000000
+
+emulation SetGlobalQuantum "0.000001"
+
+peleng_adc_setup @ADC_MANIFEST@ false
+peleng_adc_start
+
+emulation RunFor "@RENODE_RUN_TIME_S@"
+
+peleng_adc_print_results
+
+quit

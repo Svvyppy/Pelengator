@@ -58,3 +58,6 @@ private:
     void ProcessHalfTransfer(std::size_t start_index);
     static void ConvertAdcToF32(const uint32_t *source, float *destination, std::size_t length);
 };
+
+uint32_t PelengGetDmaHalfCount(void);
+uint32_t PelengGetDmaFullCount(void);

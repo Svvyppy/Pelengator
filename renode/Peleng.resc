@@ -1,0 +1,25 @@
+$name="Peleng"
+
+echo $bin_path
+
+mach create $name
+machine LoadPlatformDescription $ORIGIN/stm32g4.repl
+include $adc_runtime_path
+
+machine StartGdbServer 3333
+
+
+
+cpu PerformanceInMips 20
+emulation SetGlobalQuantum "0.001"
+emulation CreateUartPtyTerminal "term" "/tmp/usart1" true
+connector Connect sysbus.usart1 term
+macro reset
+"""
+    sysbus LoadELF $bin_path
+    sysbus.cpu VectorTableOffset 0x08000000
+"""
+
+runMacro $reset
+peleng_adc_setup $adc_manifest_path true
+peleng_adc_start
