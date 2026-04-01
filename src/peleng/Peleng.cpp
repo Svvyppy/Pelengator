@@ -6,7 +6,7 @@ namespace
 {
 volatile uint32_t g_dma_half_count = 0U;
 volatile uint32_t g_dma_full_count = 0U;
-}
+} // namespace
 
 Peleng::Peleng() = default;
 
@@ -69,6 +69,21 @@ bool Peleng::TryGetLatestDelays(DelayMeasurements *out)
 void Peleng::InitAdcs()
 {
     HAL_TIM_Base_Stop(&GetHwInstances()->htim6);
+    HAL_DAC_Start(&GetHwInstances()->hdac3, DAC_CHANNEL_1);
+    HAL_DAC_Start(&GetHwInstances()->hdac3, DAC_CHANNEL_2);
+    HAL_DAC_Start(&GetHwInstances()->hdac4, DAC_CHANNEL_1);
+    HAL_DAC_Start(&GetHwInstances()->hdac4, DAC_CHANNEL_2);
+
+    HAL_DAC_SetValue(&GetHwInstances()->hdac3, DAC_CHANNEL_1, DAC_ALIGN_12B_R, 2048);
+    HAL_DAC_SetValue(&GetHwInstances()->hdac3, DAC_CHANNEL_2, DAC_ALIGN_12B_R, 2048);
+    HAL_DAC_SetValue(&GetHwInstances()->hdac4, DAC_CHANNEL_1, DAC_ALIGN_12B_R, 2048);
+    HAL_DAC_SetValue(&GetHwInstances()->hdac4, DAC_CHANNEL_2, DAC_ALIGN_12B_R, 2048);
+
+    HAL_OPAMP_Start(&GetHwInstances()->hopamp1);
+    HAL_OPAMP_Start(&GetHwInstances()->hopamp3);
+    HAL_OPAMP_Start(&GetHwInstances()->hopamp4);
+    HAL_OPAMP_Start(&GetHwInstances()->hopamp5);
+
     HAL_OPAMP_Start(&GetHwInstances()->hopamp1);
     HAL_OPAMP_Start(&GetHwInstances()->hopamp3);
     HAL_OPAMP_Start(&GetHwInstances()->hopamp4);
