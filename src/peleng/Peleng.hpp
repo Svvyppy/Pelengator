@@ -39,7 +39,8 @@ public:
     bool TryGetLatestDelays(DelayMeasurements *out);
 
 private:
-    using AdcDmaBuffer = std::array<uint32_t, DMA_FULL_BUFFER_SIZE>;
+    // ADC DMA is configured for halfword transfers, so each sample occupies 16 bits in RAM.
+    using AdcDmaBuffer = std::array<uint16_t, DMA_FULL_BUFFER_SIZE>;
     using WorkingBuffer = std::array<float, DMA_FULL_BUFFER_SIZE>;
     using HalfBuffer = std::array<float, DMA_HALF_BUFFER_SIZE>;
 
@@ -56,7 +57,7 @@ private:
 
     void InitAdcs();
     void ProcessHalfTransfer(std::size_t start_index);
-    static void ConvertAdcToF32(const uint32_t *source, float *destination, std::size_t length);
+    static void ConvertAdcToF32(const uint16_t *source, float *destination, std::size_t length);
 };
 
 uint32_t PelengGetDmaHalfCount(void);

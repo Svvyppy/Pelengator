@@ -16,15 +16,11 @@ void InitCorePeripherals(HwInstances *hw)
 
 void InitAnalogPeripherals(HwInstances *hw)
 {
-    Dac3Init(&hw->hdac3);
     Dac4Init(&hw->hdac4);
-    Opamp1Init(&hw->hopamp1);
-    Opamp3Init(&hw->hopamp3);
     Opamp4Init(&hw->hopamp4);
-    Opamp5Init(&hw->hopamp5);
     Adc1Init(&hw->hadc1);
     Adc2Init(&hw->hadc2);
-    Adc3Init(&hw->hadc3);
+    Adc4Init(&hw->hadc4);
     Adc5Init(&hw->hadc5);
 }
 
@@ -70,20 +66,6 @@ extern "C" void DMA1_Channel1_IRQHandler(void)
 }
 
 /**
- * @brief This function handles DMA1 channel2 global interrupt.
- */
-extern "C" void DMA1_Channel2_IRQHandler(void)
-{
-    /* USER CODE BEGIN DMA1_Channel2_IRQn 0 */
-
-    /* USER CODE END DMA1_Channel2_IRQn 0 */
-    HandleAdcDmaIrq(&GetHwInstances()->hadc2);
-    /* USER CODE BEGIN DMA1_Channel2_IRQn 1 */
-
-    /* USER CODE END DMA1_Channel2_IRQn 1 */
-}
-
-/**
  * @brief This function handles DMA1 channel3 global interrupt.
  */
 extern "C" void DMA1_Channel3_IRQHandler(void)
@@ -91,24 +73,38 @@ extern "C" void DMA1_Channel3_IRQHandler(void)
     /* USER CODE BEGIN DMA1_Channel3_IRQn 0 */
 
     /* USER CODE END DMA1_Channel3_IRQn 0 */
-    HandleAdcDmaIrq(&GetHwInstances()->hadc3);
+    HandleAdcDmaIrq(&GetHwInstances()->hadc2);
     /* USER CODE BEGIN DMA1_Channel3_IRQn 1 */
 
     /* USER CODE END DMA1_Channel3_IRQn 1 */
 }
 
 /**
- * @brief This function handles DMA1 channel4 global interrupt.
+ * @brief This function handles DMA1 channel3 global interrupt.
  */
 extern "C" void DMA1_Channel4_IRQHandler(void)
 {
-    /* USER CODE BEGIN DMA1_Channel4_IRQn 0 */
+    /* USER CODE BEGIN DMA1_Channel3_IRQn 0 */
 
-    /* USER CODE END DMA1_Channel4_IRQn 0 */
+    /* USER CODE END DMA1_Channel3_IRQn 0 */
+    HandleAdcDmaIrq(&GetHwInstances()->hadc4);
+    /* USER CODE BEGIN DMA1_Channel3_IRQn 1 */
+
+    /* USER CODE END DMA1_Channel3_IRQn 1 */
+}
+
+/**
+ * @brief This function handles DMA1 channel2 global interrupt.
+ */
+extern "C" void DMA1_Channel2_IRQHandler(void)
+{
+    /* USER CODE BEGIN DMA1_Channel2_IRQn 0 */
+
+    /* USER CODE END DMA1_Channel2_IRQn 0 */
     HandleAdcDmaIrq(&GetHwInstances()->hadc5);
-    /* USER CODE BEGIN DMA1_Channel4_IRQn 1 */
+    /* USER CODE BEGIN DMA1_Channel2_IRQn 1 */
 
-    /* USER CODE END DMA1_Channel4_IRQn 1 */
+    /* USER CODE END DMA1_Channel2_IRQn 1 */
 }
 
 /**
@@ -134,8 +130,7 @@ extern "C" void TIM6_DAC_IRQHandler(void)
     /* USER CODE BEGIN TIM6_DAC_IRQn 0 */
 
     /* USER CODE END TIM6_DAC_IRQn 0 */
-    HAL_TIM_IRQHandler(&GetHwInstances()->htim6);
-    HAL_DAC_IRQHandler(&GetHwInstances()->hdac3);
+
     /* USER CODE BEGIN TIM6_DAC_IRQn 1 */
 
     /* USER CODE END TIM6_DAC_IRQn 1 */

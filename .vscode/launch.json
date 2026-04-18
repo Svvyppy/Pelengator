@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Cortex Debug f1",
+            "name": "Cortex Debug",
             "cwd": "${workspaceFolder}",
             "executable": "${workspaceFolder}/build/Debug/Peleng.elf",
             "request": "launch",
@@ -13,6 +13,12 @@
             "runToEntryPoint": "main",
             "servertype": "openocd",
             "device": "STM32G474xx",
+            "preResetCommands": [
+                "monitor reset halt",
+                "monitor reg pc 0x08000000",
+                "monitor resume",
+                "monitor halt"
+            ],
             "liveWatch": {
                 "enabled": true,
                 "samplesPerSecond": 4

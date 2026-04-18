@@ -1,9 +1,18 @@
 #include "Peleng.hpp"
 
+#include "HwInit.h"
 #include "UartTelemetry.hpp"
 
 namespace
 {
+void CheckHalStatus(HAL_StatusTypeDef status)
+{
+    if (status != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
 volatile uint32_t g_dma_half_count = 0U;
 volatile uint32_t g_dma_full_count = 0U;
 } // namespace
@@ -13,6 +22,10 @@ Peleng::Peleng() = default;
 void Peleng::Init()
 {
     event << "Peleng Init";
+    adc_buffers_[0].fill(0);
+    adc_buffers_[1].fill(0);
+    adc_buffers_[2].fill(0);
+    adc_buffers_[3].fill(0);
     InitAdcs();
     event << "ADC DMA Started";
 }
@@ -34,10 +47,7 @@ void Peleng::Process()
 
 void Peleng::DmaHalfTransferCallback(ADC_HandleTypeDef *hadc)
 {
-    if (hadc != &GetHwInstances()->hadc1)
-    {
-        return;
-    }
+
 
     ++g_dma_half_count;
     adc_half_flag_ = true;
@@ -45,10 +55,7 @@ void Peleng::DmaHalfTransferCallback(ADC_HandleTypeDef *hadc)
 
 void Peleng::DmaTransferCompleteCallback(ADC_HandleTypeDef *hadc)
 {
-    if (hadc != &GetHwInstances()->hadc1)
-    {
-        return;
-    }
+
 
     ++g_dma_full_count;
     adc_full_flag_ = true;
@@ -69,30 +76,23 @@ bool Peleng::TryGetLatestDelays(DelayMeasurements *out)
 void Peleng::InitAdcs()
 {
     HAL_TIM_Base_Stop(&GetHwInstances()->htim6);
-    HAL_DAC_Start(&GetHwInstances()->hdac3, DAC_CHANNEL_1);
-    HAL_DAC_Start(&GetHwInstances()->hdac3, DAC_CHANNEL_2);
     HAL_DAC_Start(&GetHwInstances()->hdac4, DAC_CHANNEL_1);
-    HAL_DAC_Start(&GetHwInstances()->hdac4, DAC_CHANNEL_2);
 
-    HAL_DAC_SetValue(&GetHwInstances()->hdac3, DAC_CHANNEL_1, DAC_ALIGN_12B_R, 2048);
-    HAL_DAC_SetValue(&GetHwInstances()->hdac3, DAC_CHANNEL_2, DAC_ALIGN_12B_R, 2048);
+
     HAL_DAC_SetValue(&GetHwInstances()->hdac4, DAC_CHANNEL_1, DAC_ALIGN_12B_R, 2048);
-    HAL_DAC_SetValue(&GetHwInstances()->hdac4, DAC_CHANNEL_2, DAC_ALIGN_12B_R, 2048);
 
-    HAL_OPAMP_Start(&GetHwInstances()->hopamp1);
-    HAL_OPAMP_Start(&GetHwInstances()->hopamp3);
+
     HAL_OPAMP_Start(&GetHwInstances()->hopamp4);
-    HAL_OPAMP_Start(&GetHwInstances()->hopamp5);
 
-    HAL_OPAMP_Start(&GetHwInstances()->hopamp1);
-    HAL_OPAMP_Start(&GetHwInstances()->hopamp3);
-    HAL_OPAMP_Start(&GetHwInstances()->hopamp4);
-    HAL_OPAMP_Start(&GetHwInstances()->hopamp5);
 
-    HAL_ADC_Start_DMA(&GetHwInstances()->hadc1, adc_buffers_[0].data(), DMA_FULL_BUFFER_SIZE);
-    HAL_ADC_Start_DMA(&GetHwInstances()->hadc2, adc_buffers_[1].data(), DMA_FULL_BUFFER_SIZE);
-    HAL_ADC_Start_DMA(&GetHwInstances()->hadc3, adc_buffers_[2].data(), DMA_FULL_BUFFER_SIZE);
-    HAL_ADC_Start_DMA(&GetHwInstances()->hadc5, adc_buffers_[3].data(), DMA_FULL_BUFFER_SIZE);
+    CheckHalStatus(HAL_ADC_Start_DMA(&GetHwInstances()->hadc1, reinterpret_cast<uint32_t *>(adc_buffers_[0].data()),
+                                     DMA_FULL_BUFFER_SIZE));
+    CheckHalStatus(HAL_ADC_Start_DMA(&GetHwInstances()->hadc2, reinterpret_cast<uint32_t *>(adc_buffers_[1].data()),
+                                     DMA_FULL_BUFFER_SIZE));
+    CheckHalStatus(HAL_ADC_Start_DMA(&GetHwInstances()->hadc4, reinterpret_cast<uint32_t *>(adc_buffers_[2].data()),
+                                     DMA_FULL_BUFFER_SIZE));
+    CheckHalStatus(HAL_ADC_Start_DMA(&GetHwInstances()->hadc5, reinterpret_cast<uint32_t *>(adc_buffers_[3].data()),
+                                     DMA_FULL_BUFFER_SIZE));
     HAL_TIM_Base_Start(&GetHwInstances()->htim6);
 }
 
@@ -110,7 +110,7 @@ void Peleng::ProcessHalfTransfer(std::size_t start_index)
     has_new_delays_ = true;
 }
 
-void Peleng::ConvertAdcToF32(const uint32_t *source, float *destination, std::size_t length)
+void Peleng::ConvertAdcToF32(const uint16_t *source, float *destination, std::size_t length)
 {
     constexpr uint32_t kAdcMask12Bit = 0x0FFFU;
     constexpr int32_t kAdcMidpoint = 2048;
