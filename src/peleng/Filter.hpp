@@ -12,7 +12,7 @@ extern "C"
 #include "FilterCoefficients.hpp"
 
 /**
- * @brief Lightweight FIR wrapper over CMSIS-DSP arm_fir_f32.
+ * @brief Lightweight FIR wrapper over CMSIS-DSP arm_fir_q15.
  *
  * The class owns filter state memory and applies FIR in fixed-size blocks.
  * It is intentionally allocation-free and suitable for deterministic embedded DSP.
@@ -30,11 +30,10 @@ public:
      * @param sample_count Number of samples to process.
      * @note sample_count must be a multiple of BLOCK_SIZE.
      */
-    void ApplyEnvelope(const float* input, float* output, std::size_t sample_count);
+    void ApplyEnvelope(const q15_t *input, q15_t *output, std::size_t sample_count);
 
 private:
-    arm_fir_instance_f32 fir_instance_{};
-    std::array<float32_t, DMA_HALF_BUFFER_SIZE> square_buffer_{};
-    std::array<float32_t, BLOCK_SIZE + NUM_TAPS - 1U> state_{};
-    bool first_apply_logged_ = false;
+    arm_fir_instance_q15 fir_instance_{};
+    std::array<q15_t, DMA_HALF_BUFFER_SIZE> square_buffer_{};
+    std::array<q15_t, BLOCK_SIZE + Q15_NUM_TAPS> state_{};
 };

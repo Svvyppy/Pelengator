@@ -129,28 +129,27 @@ void Peleng::ProcessHalfTransfer(std::size_t start_index)
 {
     for (std::size_t channel = 0U; channel < ADC_CHANNELS; ++channel)
     {
-        ConvertAdcToF32(adc_buffers_[channel].data() + start_index, work_buffers_[channel].data() + start_index,
+        ConvertAdcToQ15(adc_buffers_[channel].data() + start_index, work_buffers_[channel].data(),
                         DMA_HALF_BUFFER_SIZE);
-        envelope_filters_[channel].ApplyEnvelope(work_buffers_[channel].data() + start_index,
-                                                 envelope_buffers_[channel].data(), DMA_HALF_BUFFER_SIZE);
+        envelope_filters_[channel].ApplyEnvelope(work_buffers_[channel].data(), envelope_buffers_[channel].data(),
+                                                 DMA_HALF_BUFFER_SIZE);
     }
 
     latest_delays_ = peleng::EstimateDelayMeasurements(envelope_buffers_);
     has_new_delays_ = true;
 }
 
-void Peleng::ConvertAdcToF32(const uint16_t *source, float *destination, std::size_t length)
+void Peleng::ConvertAdcToQ15(const uint16_t *source, q15_t *destination, std::size_t length)
 {
     constexpr uint32_t kAdcMask12Bit = 0x0FFFU;
     constexpr int32_t kAdcMidpoint = 2048;
-    constexpr int32_t kQ31Scale = 1 << 19;
+    constexpr int32_t kQ15Shift = 4;
 
     for (std::size_t index = 0U; index < length; ++index)
     {
         const int32_t raw = static_cast<int32_t>(source[index] & kAdcMask12Bit);
         const int32_t centered = raw - kAdcMidpoint;
-        const int32_t scaled = centered * kQ31Scale;
-        destination[index] = static_cast<float>(scaled);
+        destination[index] = static_cast<q15_t>(centered << kQ15Shift);
     }
 }
 

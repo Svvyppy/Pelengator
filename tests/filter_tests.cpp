@@ -1,5 +1,4 @@
 #include <array>
-#include <numeric>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -8,9 +7,9 @@
 
 namespace
 {
-bool NearlyEqual(float lhs, float rhs, float tolerance = 1e-6f)
+bool NearlyEqual(q15_t lhs, q15_t rhs, q15_t tolerance = 1)
 {
-    const float diff = lhs - rhs;
+    const int diff = static_cast<int>(lhs) - static_cast<int>(rhs);
     return (diff <= tolerance) && (-diff <= tolerance);
 }
 } // namespace
@@ -19,35 +18,31 @@ TEST_CASE("Envelope filter reaches expected steady-state for constant input", "[
 {
     Filter filter;
 
-    std::array<float, DMA_HALF_BUFFER_SIZE> input{};
-    std::array<float, DMA_HALF_BUFFER_SIZE> output{};
-    input.fill(1.5f);
-    output.fill(0.0f);
+    std::array<q15_t, DMA_HALF_BUFFER_SIZE> input{};
+    std::array<q15_t, DMA_HALF_BUFFER_SIZE> output{};
+    input.fill(16384);
+    output.fill(0);
 
     filter.ApplyEnvelope(input.data(), output.data(), input.size());
 
-    const float coeff_sum =
-        std::accumulate(kEnvelopeFirCoefficients.begin(), kEnvelopeFirCoefficients.end(), 0.0f);
-    const float expected = 1.5f * 1.5f * coeff_sum;
-
-    REQUIRE(NearlyEqual(expected, 2.25f, 1e-3f));
-    REQUIRE(NearlyEqual(output[NUM_TAPS], expected, 1e-3f));
-    REQUIRE(NearlyEqual(output.back(), expected, 1e-3f));
+    constexpr q15_t expected = 8192;
+    REQUIRE(NearlyEqual(output[Q15_NUM_TAPS], expected));
+    REQUIRE(NearlyEqual(output.back(), expected));
 }
 
 TEST_CASE("Envelope filter returns zero for zero input", "[filter]")
 {
     Filter filter;
 
-    std::array<float, DMA_HALF_BUFFER_SIZE> input{};
-    std::array<float, DMA_HALF_BUFFER_SIZE> output{};
-    input.fill(0.0f);
-    output.fill(123.0f);
+    std::array<q15_t, DMA_HALF_BUFFER_SIZE> input{};
+    std::array<q15_t, DMA_HALF_BUFFER_SIZE> output{};
+    input.fill(0);
+    output.fill(123);
 
     filter.ApplyEnvelope(input.data(), output.data(), input.size());
 
-    for (const float value : output)
+    for (const q15_t value : output)
     {
-        REQUIRE(NearlyEqual(value, 0.0f));
+        REQUIRE(value == 0);
     }
 }

@@ -8,8 +8,8 @@ namespace peleng {
 ThresholdCrossing FindThresholdCrossing(const HalfBuffer& buffer)
 {
     for (std::size_t index = 0U; index < DMA_HALF_BUFFER_SIZE; ++index) {
-        const float value = buffer[index];
-        if (value > SIGNAL_THRESHOLD) {
+        const q15_t value = buffer[index];
+        if (value > SIGNAL_THRESHOLD_Q15) {
             return ThresholdCrossing{ .index = index, .value = value, .found = true };
         }
     }

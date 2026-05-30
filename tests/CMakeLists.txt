@@ -12,14 +12,8 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMSISCORE "${CMAKE_CURRENT_LIST_DIR}/../Drivers/CMSIS" CACHE PATH "CMSIS Core source root" FORCE)
-
-FetchContent_Declare(
-    cmsis_dsp
-    GIT_REPOSITORY https://github.com/ARM-software/CMSIS-DSP.git
-    GIT_TAG e968b3cc3fdf5f2dec242977794e351ed4a42bce
-    GIT_SHALLOW TRUE
-)
-FetchContent_Populate(cmsis_dsp)
+set(PELENG_CMSIS_DSP_DIR "${CMAKE_CURRENT_LIST_DIR}/../Drivers/CMSIS-DSP"
+    CACHE PATH "CMSIS-DSP source root")
 
 set(HOST ON CACHE BOOL "Build CMSIS-DSP for host" FORCE)
 set(NEON OFF CACHE BOOL "" FORCE)
@@ -36,7 +30,16 @@ set(DISABLEFLOAT16 ON CACHE BOOL "" FORCE)
 set(AUTOVECTORIZE OFF CACHE BOOL "" FORCE)
 set(LAXVECTORCONVERSIONS ON CACHE BOOL "" FORCE)
 
-add_subdirectory(${cmsis_dsp_SOURCE_DIR}/Source ${cmsis_dsp_BINARY_DIR}/CMSISDSP)
+if(EXISTS "${PELENG_CMSIS_DSP_DIR}/Source/CMakeLists.txt")
+    add_subdirectory("${PELENG_CMSIS_DSP_DIR}/Source" "${CMAKE_BINARY_DIR}/CMSISDSP")
+else()
+    FetchContent_Declare(
+        cmsis_dsp
+        GIT_REPOSITORY https://github.com/ARM-software/CMSIS-DSP.git
+        GIT_TAG e968b3cc3fdf5f2dec242977794e351ed4a42bce
+    )
+    FetchContent_MakeAvailable(cmsis_dsp)
+endif()
 
 FetchContent_Declare(
     Catch2

@@ -21,7 +21,7 @@ peleng::EnvelopeBuffers MakeDetectedBuffers(const std::array<std::size_t, ADC_CH
         const std::size_t index = crossings[channel];
         if (index < DMA_HALF_BUFFER_SIZE)
         {
-            buffers[channel][index] = SIGNAL_THRESHOLD + 10.0f;
+            buffers[channel][index] = SIGNAL_THRESHOLD_Q15 + 10;
         }
     }
     return buffers;

@@ -53,11 +53,10 @@ public:
 private:
     // ADC DMA is configured for halfword transfers, so each sample occupies 16 bits in RAM.
     using AdcDmaBuffer = std::array<uint16_t, DMA_FULL_BUFFER_SIZE>;
-    using WorkingBuffer = std::array<float, DMA_FULL_BUFFER_SIZE>;
-    using HalfBuffer = std::array<float, DMA_HALF_BUFFER_SIZE>;
+    using HalfBuffer = std::array<q15_t, DMA_HALF_BUFFER_SIZE>;
 
     std::array<AdcDmaBuffer, ADC_CHANNELS> adc_buffers_{};
-    std::array<WorkingBuffer, ADC_CHANNELS> work_buffers_{};
+    std::array<HalfBuffer, ADC_CHANNELS> work_buffers_{};
     std::array<HalfBuffer, ADC_CHANNELS> envelope_buffers_{};
     std::array<Filter, ADC_CHANNELS> envelope_filters_{};
 
@@ -71,7 +70,7 @@ private:
 
     void InitAdcs();
     void ProcessHalfTransfer(std::size_t start_index);
-    static void ConvertAdcToF32(const uint16_t *source, float *destination, std::size_t length);
+    static void ConvertAdcToQ15(const uint16_t *source, q15_t *destination, std::size_t length);
     static std::size_t AdcHandleToIndex(const ADC_HandleTypeDef *hadc);
 };
 

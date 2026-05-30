@@ -6,6 +6,11 @@
 
 #include "CommonSettings.h"
 
+extern "C"
+{
+#include <arm_math.h>
+}
+
 /**
  * @brief Relative delays between channel 1 and channels 2..4.
  */
@@ -37,14 +42,14 @@ struct ThresholdCrossing
     /** @brief Sample index where threshold crossing was detected. */
     std::size_t index = 0U;
     /** @brief Envelope value at crossing index. */
-    float value = 0.0f;
+    q15_t value = 0;
     /** @brief Indicates whether a crossing was found. */
     bool found = false;
 };
 
 namespace peleng {
 /** @brief Half-frame envelope buffer type for one channel. */
-using HalfBuffer = std::array<float, DMA_HALF_BUFFER_SIZE>;
+using HalfBuffer = std::array<q15_t, DMA_HALF_BUFFER_SIZE>;
 /** @brief Envelope buffers for all channels in one processing step. */
 using EnvelopeBuffers = std::array<HalfBuffer, ADC_CHANNELS>;
 
