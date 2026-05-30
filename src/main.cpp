@@ -1,6 +1,7 @@
 #include "main.h"
 
 #include "Hw.h"
+
 #include "Peleng.hpp"
 #include "UartTelemetry.hpp"
 #include "cordic.h"
@@ -21,7 +22,7 @@ int main(void)
     while (1) {
         UartTelemetryProcess();
         g_peleng.Process();
-
+        event << "Signal acquisition started";
         DelayMeasurements delays;
         if (g_peleng.TryGetLatestDelays(&delays)) {
             if ((++delay_frame_decimator % kDelayTxEveryNFrames) == 0U) {
