@@ -30,19 +30,19 @@ std::size_t AdcHandleToIndex(const ADC_HandleTypeDef* hadc)
         return ADC_CHANNELS;
     }
 
-    if (hadc->Instance == ADC1)
+    if (hadc->Instance == ADC4)
     {
         return 0U;
     }
-    if (hadc->Instance == ADC2)
+    if (hadc->Instance == ADC5)
     {
         return 1U;
     }
-    if (hadc->Instance == ADC4)
+    if (hadc->Instance == ADC2)
     {
         return 2U;
     }
-    if (hadc->Instance == ADC5)
+    if (hadc->Instance == ADC1)
     {
         return 3U;
     }
@@ -90,13 +90,13 @@ void StartSignalAcquisition(SignalSampleBuffers* buffers)
     CheckHalStatus(HAL_DAC_SetValue(&hw->hdac4, DAC_CHANNEL_1, DAC_ALIGN_12B_R, 2048));
     CheckHalStatus(HAL_OPAMP_Start(&hw->hopamp4));
 
-    CheckHalStatus(HAL_ADC_Start_DMA(&hw->hadc1, reinterpret_cast<uint32_t*>((*g_buffers)[0].data()),
+    CheckHalStatus(HAL_ADC_Start_DMA(&hw->hadc4, reinterpret_cast<uint32_t*>((*g_buffers)[0].data()),
                                      SIGNAL_SAMPLE_BUFFER_SIZE));
-    CheckHalStatus(HAL_ADC_Start_DMA(&hw->hadc2, reinterpret_cast<uint32_t*>((*g_buffers)[1].data()),
+    CheckHalStatus(HAL_ADC_Start_DMA(&hw->hadc5, reinterpret_cast<uint32_t*>((*g_buffers)[1].data()),
                                      SIGNAL_SAMPLE_BUFFER_SIZE));
-    CheckHalStatus(HAL_ADC_Start_DMA(&hw->hadc4, reinterpret_cast<uint32_t*>((*g_buffers)[2].data()),
+    CheckHalStatus(HAL_ADC_Start_DMA(&hw->hadc2, reinterpret_cast<uint32_t*>((*g_buffers)[2].data()),
                                      SIGNAL_SAMPLE_BUFFER_SIZE));
-    CheckHalStatus(HAL_ADC_Start_DMA(&hw->hadc5, reinterpret_cast<uint32_t*>((*g_buffers)[3].data()),
+    CheckHalStatus(HAL_ADC_Start_DMA(&hw->hadc1, reinterpret_cast<uint32_t*>((*g_buffers)[3].data()),
                                      SIGNAL_SAMPLE_BUFFER_SIZE));
     CheckHalStatus(HAL_TIM_Base_Start(&hw->htim6));
     CheckHalStatus(HAL_TIM_Base_Start(&hw->htim7));
@@ -134,8 +134,8 @@ void FillSignalAcquisitionDebug(SignalAcquisitionDebug* out, const SignalSampleB
     }
 
     const HwInstances* hw = GetHwInstances();
-    const std::array<const ADC_HandleTypeDef*, ADC_CHANNELS> adcs = {&hw->hadc1, &hw->hadc2, &hw->hadc4,
-                                                                     &hw->hadc5};
+    const std::array<const ADC_HandleTypeDef*, ADC_CHANNELS> adcs = {&hw->hadc4, &hw->hadc5, &hw->hadc2,
+                                                                     &hw->hadc1};
 
     for (std::size_t i = 0U; i < ADC_CHANNELS; ++i)
     {
