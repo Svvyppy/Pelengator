@@ -30,15 +30,18 @@ static inline constexpr const std::size_t ADC_CHANNELS = 4U;
 static inline constexpr const int16_t SIGNAL_THRESHOLD_Q15 = 4000;
 /** @brief ADC sampling frequency in hertz. */
 static inline constexpr const float SAMPLE_RATE_HZ = 250000.0f;
+/** @brief Assumed speed of sound in water in meters per second. */
+static inline constexpr const float SOUND_SPEED_MPS = 1500.0f;
 
 /** @brief Samples processed when one acquisition block is ready. */
 static inline constexpr const std::size_t SIGNAL_BLOCK_SIZE = BUFFER_SIZE;
 /** @brief Samples kept by the acquisition backend per channel. */
 static inline constexpr const std::size_t SIGNAL_SAMPLE_BUFFER_SIZE = BUFFER_SIZE * 2U;
 
-/** @brief Distance between 1 and 2 hydrophone. */
-static inline constexpr float const Dist1n2 = 0.235;
-/** @brief Distance between 1 and 3 hydrophone. */
-static inline constexpr float const Dist1n3 = 0.235;
-/** @brief Distance between 1 and 4 hydrophone. */
-static inline constexpr const float Dist1n4 = 0.235;
+/** @brief Hydrophone coordinates in meters, indexed by logical channel. */
+static inline constexpr const float HYDROPHONE_POSITIONS_M[ADC_CHANNELS][3] = {
+    {0.0625f, 0.1175f, 0.0f},
+    {0.0625f, -0.1175f, 0.0f},
+    {0.0f, -0.037f, 0.220f},
+    {0.295f, 0.0f, 0.0f},
+};

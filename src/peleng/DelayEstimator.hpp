@@ -30,8 +30,23 @@ struct DelayMeasurements
     /** @brief Delay 4-1 in microseconds. */
     float d14_us = 0.0f;
 
+    /** @brief Direction x component from array toward source. */
+    float direction_x = 0.0f;
+    /** @brief Direction y component from array toward source. */
+    float direction_y = 0.0f;
+    /** @brief Direction z component from array toward source. */
+    float direction_z = 0.0f;
+    /** @brief Horizontal bearing angle in degrees, atan2(y, x); 90 degrees points toward Y+. */
+    float peleng_deg = 0.0f;
+    /** @brief Alias for horizontal bearing angle in degrees. */
+    float azimuth_deg = 0.0f;
+    /** @brief Vertical elevation angle in degrees above the XY plane; 90 degrees points toward Z+. */
+    float elevation_deg = 0.0f;
+
     /** @brief True when all required threshold crossings were found. */
     bool valid = false;
+    /** @brief True when direction and angles were computed from a solvable geometry. */
+    bool angles_valid = false;
 };
 
 /**
@@ -65,4 +80,8 @@ DelayMeasurements EstimateDelayMeasurements(const EnvelopeBuffers& buffers);
  * @brief Convert delay in samples to microseconds using configured sample rate.
  */
 float SamplesToMicroseconds(int32_t samples);
+/**
+ * @brief Estimate source direction and angles from relative delays using least squares.
+ */
+void EstimateDirectionLeastSquares(DelayMeasurements& measurements);
 } // namespace peleng

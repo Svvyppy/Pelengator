@@ -1,20 +1,16 @@
 #include "UartTelemetry.hpp"
 
 #include <array>
-#include <cstdarg>
-#include <cstdio>
+#include <cmath>
 #include <cstring>
 
 #include "Hw.h"
-#include "Peleng.hpp"
 #include "Pins.h"
-#include "SignalAcquisition.hpp"
 
 namespace
 {
 constexpr std::size_t kQueueDepth = 8U;
-constexpr std::size_t kMessageCapacity = 128U;
-constexpr uint32_t kAlivePeriodMs = 1000U;
+constexpr std::size_t kMessageCapacity = 16U;
 
 struct UartTelemetryQueue
 {
@@ -27,26 +23,19 @@ struct UartTelemetryQueue
 };
 
 UartTelemetryQueue g_queue{};
-uint32_t g_last_alive_tick = 0U;
-uint32_t g_event_drop_count = 0U;
-Peleng *g_peleng_debug = nullptr;
+
+struct DelayTelemetryPacket
+{
+    uint8_t d12_us = 0U;
+    uint8_t d13_us = 0U;
+    uint8_t d14_us = 0U;
+    float peleng_deg = 0.0f;
+    float elevation_deg = 0.0f;
+} __attribute__((packed));
+
+static_assert(sizeof(DelayTelemetryPacket) == 11U);
 
 std::size_t NextIndex(std::size_t index) { return (index + 1U) % kQueueDepth; }
-
-uint16_t NormalizeLength(int formatted_length)
-{
-    if (formatted_length <= 0)
-    {
-        return 0U;
-    }
-
-    if (formatted_length >= static_cast<int>(kMessageCapacity))
-    {
-        return static_cast<uint16_t>(kMessageCapacity - 1U);
-    }
-
-    return static_cast<uint16_t>(formatted_length);
-}
 
 bool IsTxReady(const UART_HandleTypeDef *huart) { return huart->gState == HAL_UART_STATE_READY; }
 
@@ -55,6 +44,20 @@ void SetRs485DirectionTx(void) { HAL_GPIO_WritePin(TX_En_GPIO_Port, TX_En_Pin, G
 void SetRs485DirectionRx(void) { HAL_GPIO_WritePin(TX_En_GPIO_Port, TX_En_Pin, GPIO_PIN_RESET); }
 
 bool IsInIsrContext(void) { return (__get_IPSR() != 0U); }
+
+uint8_t FloatMicrosecondsToU8(float value)
+{
+    if (value <= 0.0f)
+    {
+        return 0U;
+    }
+    if (value >= 255.0f)
+    {
+        return 255U;
+    }
+
+    return static_cast<uint8_t>(std::lround(value));
+}
 
 uint32_t EnterCritical(void)
 {
@@ -91,110 +94,6 @@ bool EnqueueBytes(const char *payload, uint16_t payload_length)
     return true;
 }
 
-bool EnqueueFormattedMessage(const char *format, ...)
-{
-    char local_buffer[kMessageCapacity] = {};
-
-    va_list args;
-    va_start(args, format);
-    const int formatted_length = std::vsnprintf(local_buffer, kMessageCapacity, format, args);
-    va_end(args);
-
-    const uint16_t payload_length = NormalizeLength(formatted_length);
-    if (payload_length == 0U)
-    {
-        return false;
-    }
-
-    return EnqueueBytes(local_buffer, payload_length);
-}
-
-bool EnqueueEventMessage(const char *message)
-{
-    if (message == nullptr)
-    {
-        return false;
-    }
-
-    char local_buffer[kMessageCapacity] = {};
-    uint16_t len = 0U;
-
-    constexpr char kPrefix[] = "EVT ";
-    for (std::size_t i = 0U; i < sizeof(kPrefix) - 1U; ++i)
-    {
-        local_buffer[len++] = kPrefix[i];
-    }
-
-    while (*message != '\0' && len < static_cast<uint16_t>(kMessageCapacity - 3U))
-    {
-        local_buffer[len++] = *message++;
-    }
-
-    local_buffer[len++] = '\r';
-    local_buffer[len++] = '\n';
-
-    return EnqueueBytes(local_buffer, len);
-}
-
-void QueueAliveMessageIfDue(void)
-{
-    const uint32_t now = HAL_GetTick();
-    if ((now - g_last_alive_tick) < kAlivePeriodMs)
-    {
-        return;
-    }
-
-    uint32_t drops = 0U;
-    std::size_t queued = 0U;
-    const uint32_t first_half_count = platform::GetSignalFirstHalfReadyCount();
-    const uint32_t second_half_count = platform::GetSignalSecondHalfReadyCount();
-    platform::SignalAcquisitionDebug debug{};
-    {
-        const uint32_t primask = EnterCritical();
-        drops = g_event_drop_count;
-        queued = g_queue.count;
-        ExitCritical(primask);
-    }
-
-    if (g_peleng_debug != nullptr)
-    {
-        g_peleng_debug->FillDebugSnapshot(&debug);
-    }
-
-    if (EnqueueFormattedMessage("ALIVE t=%lu RS485=TX q=%lu drop=%lu half1=%lu half2=%lu\\r\\n",
-                                static_cast<unsigned long>(now), static_cast<unsigned long>(queued),
-                                static_cast<unsigned long>(drops), static_cast<unsigned long>(first_half_count),
-                                static_cast<unsigned long>(second_half_count)))
-    {
-        g_last_alive_tick = now;
-    }
-
-    (void)EnqueueFormattedMessage(
-        "ADC raw=%u,%u,%u,%u cndtr=%lu,%lu,%lu,%lu hc=%lu,%lu,%lu,%lu fc=%lu,%lu,%lu,%lu\\r\\n",
-        static_cast<unsigned>(debug.first_samples[0]), static_cast<unsigned>(debug.first_samples[1]),
-        static_cast<unsigned>(debug.first_samples[2]), static_cast<unsigned>(debug.first_samples[3]),
-        static_cast<unsigned long>(debug.remaining_transfers[0]),
-        static_cast<unsigned long>(debug.remaining_transfers[1]),
-        static_cast<unsigned long>(debug.remaining_transfers[2]),
-        static_cast<unsigned long>(debug.remaining_transfers[3]),
-        static_cast<unsigned long>(debug.first_half_counts[0]),
-        static_cast<unsigned long>(debug.first_half_counts[1]),
-        static_cast<unsigned long>(debug.first_half_counts[2]),
-        static_cast<unsigned long>(debug.first_half_counts[3]),
-        static_cast<unsigned long>(debug.second_half_counts[0]),
-        static_cast<unsigned long>(debug.second_half_counts[1]),
-        static_cast<unsigned long>(debug.second_half_counts[2]),
-        static_cast<unsigned long>(debug.second_half_counts[3]));
-
-    (void)EnqueueFormattedMessage(
-        "ADC dr=%lu,%lu,%lu,%lu isr=%08lX,%08lX,%08lX,%08lX cr=%08lX,%08lX,%08lX,%08lX\\r\\n",
-        static_cast<unsigned long>(debug.data_registers[0]), static_cast<unsigned long>(debug.data_registers[1]),
-        static_cast<unsigned long>(debug.data_registers[2]), static_cast<unsigned long>(debug.data_registers[3]),
-        static_cast<unsigned long>(debug.status_registers[0]), static_cast<unsigned long>(debug.status_registers[1]),
-        static_cast<unsigned long>(debug.status_registers[2]), static_cast<unsigned long>(debug.status_registers[3]),
-        static_cast<unsigned long>(debug.control_registers[0]), static_cast<unsigned long>(debug.control_registers[1]),
-        static_cast<unsigned long>(debug.control_registers[2]), static_cast<unsigned long>(debug.control_registers[3]));
-}
 } // namespace
 
 /**
@@ -223,8 +122,6 @@ void UartTelemetryProcess(void)
     {
         SetRs485DirectionRx();
     }
-
-    QueueAliveMessageIfDue();
 
     if (!IsTxReady(huart))
     {
@@ -275,19 +172,20 @@ void UartTelemetryProcess(void)
  */
 bool SendDelayTelemetryUart(const DelayMeasurements &delays)
 {
-    bool queued = false;
-    if (delays.valid)
+    if (!delays.valid || !delays.angles_valid)
     {
-        queued = EnqueueFormattedMessage("RS485=TX D12=%ld(%0.2fus) D13=%ld(%0.2fus) D14=%ld(%0.2fus)\\r\\n",
-                                         static_cast<long>(delays.d12_samples), static_cast<double>(delays.d12_us),
-                                         static_cast<long>(delays.d13_samples), static_cast<double>(delays.d13_us),
-                                         static_cast<long>(delays.d14_samples), static_cast<double>(delays.d14_us));
-    }
-    else
-    {
-        queued = EnqueueFormattedMessage("RS485=TX NO_SIGNAL\\r\\n");
+        return false;
     }
 
+    const DelayTelemetryPacket packet{
+        .d12_us = FloatMicrosecondsToU8(delays.d12_us),
+        .d13_us = FloatMicrosecondsToU8(delays.d13_us),
+        .d14_us = FloatMicrosecondsToU8(delays.d14_us),
+        .peleng_deg = delays.peleng_deg,
+        .elevation_deg = delays.elevation_deg,
+    };
+
+    const bool queued = EnqueueBytes(reinterpret_cast<const char *>(&packet), sizeof(packet));
     if (!queued)
     {
         return false;
@@ -302,19 +200,7 @@ bool SendDelayTelemetryUart(const DelayMeasurements &delays)
 
 bool SendEventTelemetryUart(const char *message)
 {
-    const bool queued = EnqueueEventMessage(message);
-    if (!queued)
-    {
-        const uint32_t primask = EnterCritical();
-        ++g_event_drop_count;
-        ExitCritical(primask);
-        return false;
-    }
-
-    if (!IsInIsrContext())
-    {
-        UartTelemetryProcess();
-    }
+    (void)message;
     return true;
 }
 
@@ -326,4 +212,4 @@ EventLogger &EventLogger::operator<<(const char *message)
 
 EventLogger event{};
 
-void SetPelengDebugSource(Peleng *peleng) { g_peleng_debug = peleng; }
+void SetPelengDebugSource(Peleng *peleng) { (void)peleng; }
