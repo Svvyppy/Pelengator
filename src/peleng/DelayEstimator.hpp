@@ -49,7 +49,7 @@ struct ThresholdCrossing
 
 namespace peleng {
 /** @brief Half-frame envelope buffer type for one channel. */
-using HalfBuffer = std::array<q15_t, DMA_HALF_BUFFER_SIZE>;
+using HalfBuffer = std::array<q15_t, SIGNAL_BLOCK_SIZE>;
 /** @brief Envelope buffers for all channels in one processing step. */
 using EnvelopeBuffers = std::array<HalfBuffer, ADC_CHANNELS>;
 

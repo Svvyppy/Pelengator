@@ -1,5 +1,6 @@
 #include "main.h"
 
+#include "Hw.h"
 #include "Peleng.hpp"
 #include "UartTelemetry.hpp"
 #include "cordic.h"
@@ -10,7 +11,9 @@ int main(void)
 {
     InitHw();
     SetPelengDebugSource(&g_peleng);
+    event << "Peleng Init";
     g_peleng.Init();
+    event << "Signal acquisition started";
 
     uint32_t delay_frame_decimator          = 0U;
     constexpr uint32_t kDelayTxEveryNFrames = 16U;
@@ -26,16 +29,6 @@ int main(void)
             }
         }
     }
-}
-
-extern "C" void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
-{
-    g_peleng.DmaTransferCompleteCallback(hadc);
-}
-
-extern "C" void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
-{
-    g_peleng.DmaHalfTransferCallback(hadc);
 }
 
 extern "C" void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)

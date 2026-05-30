@@ -51,9 +51,9 @@ void Adc1Init(ADC_HandleTypeDef *hadc)
         Error_Handler();
     }
 
-    sConfig.Channel = ADC_CHANNEL_VREFINT;
+    sConfig.Channel = ADC_CHANNEL_4;
     sConfig.Rank = ADC_REGULAR_RANK_1;
-    sConfig.SamplingTime = ADC_SAMPLETIME_640CYCLES_5;
+    sConfig.SamplingTime = ADC_SAMPLETIME_92CYCLES_5;
     sConfig.SingleDiff = ADC_SINGLE_ENDED;
     sConfig.OffsetNumber = ADC_OFFSET_NONE;
     sConfig.Offset = 0;

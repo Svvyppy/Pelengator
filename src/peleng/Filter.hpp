@@ -34,6 +34,6 @@ public:
 
 private:
     arm_fir_instance_q15 fir_instance_{};
-    std::array<q15_t, DMA_HALF_BUFFER_SIZE> square_buffer_{};
+    std::array<q15_t, SIGNAL_BLOCK_SIZE> square_buffer_{};
     std::array<q15_t, BLOCK_SIZE + Q15_NUM_TAPS> state_{};
 };

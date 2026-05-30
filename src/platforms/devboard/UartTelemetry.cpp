@@ -8,6 +8,7 @@
 #include "Hw.h"
 #include "Peleng.hpp"
 #include "Pins.h"
+#include "SignalAcquisition.hpp"
 
 namespace
 {
@@ -145,9 +146,9 @@ void QueueAliveMessageIfDue(void)
 
     uint32_t drops = 0U;
     std::size_t queued = 0U;
-    const uint32_t dma_half = PelengGetDmaHalfCount();
-    const uint32_t dma_full = PelengGetDmaFullCount();
-    Peleng::DebugSnapshot debug{};
+    const uint32_t first_half_count = platform::GetSignalFirstHalfReadyCount();
+    const uint32_t second_half_count = platform::GetSignalSecondHalfReadyCount();
+    platform::SignalAcquisitionDebug debug{};
     {
         const uint32_t primask = EnterCritical();
         drops = g_event_drop_count;
@@ -160,10 +161,10 @@ void QueueAliveMessageIfDue(void)
         g_peleng_debug->FillDebugSnapshot(&debug);
     }
 
-    if (EnqueueFormattedMessage("ALIVE t=%lu RS485=TX q=%lu drop=%lu dmaH=%lu dmaF=%lu\\r\\n",
+    if (EnqueueFormattedMessage("ALIVE t=%lu RS485=TX q=%lu drop=%lu half1=%lu half2=%lu\\r\\n",
                                 static_cast<unsigned long>(now), static_cast<unsigned long>(queued),
-                                static_cast<unsigned long>(drops), static_cast<unsigned long>(dma_half),
-                                static_cast<unsigned long>(dma_full)))
+                                static_cast<unsigned long>(drops), static_cast<unsigned long>(first_half_count),
+                                static_cast<unsigned long>(second_half_count)))
     {
         g_last_alive_tick = now;
     }
@@ -172,21 +173,27 @@ void QueueAliveMessageIfDue(void)
         "ADC raw=%u,%u,%u,%u cndtr=%lu,%lu,%lu,%lu hc=%lu,%lu,%lu,%lu fc=%lu,%lu,%lu,%lu\\r\\n",
         static_cast<unsigned>(debug.first_samples[0]), static_cast<unsigned>(debug.first_samples[1]),
         static_cast<unsigned>(debug.first_samples[2]), static_cast<unsigned>(debug.first_samples[3]),
-        static_cast<unsigned long>(debug.dma_cndtr[0]), static_cast<unsigned long>(debug.dma_cndtr[1]),
-        static_cast<unsigned long>(debug.dma_cndtr[2]), static_cast<unsigned long>(debug.dma_cndtr[3]),
-        static_cast<unsigned long>(debug.half_counts[0]), static_cast<unsigned long>(debug.half_counts[1]),
-        static_cast<unsigned long>(debug.half_counts[2]), static_cast<unsigned long>(debug.half_counts[3]),
-        static_cast<unsigned long>(debug.full_counts[0]), static_cast<unsigned long>(debug.full_counts[1]),
-        static_cast<unsigned long>(debug.full_counts[2]), static_cast<unsigned long>(debug.full_counts[3]));
+        static_cast<unsigned long>(debug.remaining_transfers[0]),
+        static_cast<unsigned long>(debug.remaining_transfers[1]),
+        static_cast<unsigned long>(debug.remaining_transfers[2]),
+        static_cast<unsigned long>(debug.remaining_transfers[3]),
+        static_cast<unsigned long>(debug.first_half_counts[0]),
+        static_cast<unsigned long>(debug.first_half_counts[1]),
+        static_cast<unsigned long>(debug.first_half_counts[2]),
+        static_cast<unsigned long>(debug.first_half_counts[3]),
+        static_cast<unsigned long>(debug.second_half_counts[0]),
+        static_cast<unsigned long>(debug.second_half_counts[1]),
+        static_cast<unsigned long>(debug.second_half_counts[2]),
+        static_cast<unsigned long>(debug.second_half_counts[3]));
 
     (void)EnqueueFormattedMessage(
         "ADC dr=%lu,%lu,%lu,%lu isr=%08lX,%08lX,%08lX,%08lX cr=%08lX,%08lX,%08lX,%08lX\\r\\n",
-        static_cast<unsigned long>(debug.adc_dr[0]), static_cast<unsigned long>(debug.adc_dr[1]),
-        static_cast<unsigned long>(debug.adc_dr[2]), static_cast<unsigned long>(debug.adc_dr[3]),
-        static_cast<unsigned long>(debug.adc_isr[0]), static_cast<unsigned long>(debug.adc_isr[1]),
-        static_cast<unsigned long>(debug.adc_isr[2]), static_cast<unsigned long>(debug.adc_isr[3]),
-        static_cast<unsigned long>(debug.adc_cr[0]), static_cast<unsigned long>(debug.adc_cr[1]),
-        static_cast<unsigned long>(debug.adc_cr[2]), static_cast<unsigned long>(debug.adc_cr[3]));
+        static_cast<unsigned long>(debug.data_registers[0]), static_cast<unsigned long>(debug.data_registers[1]),
+        static_cast<unsigned long>(debug.data_registers[2]), static_cast<unsigned long>(debug.data_registers[3]),
+        static_cast<unsigned long>(debug.status_registers[0]), static_cast<unsigned long>(debug.status_registers[1]),
+        static_cast<unsigned long>(debug.status_registers[2]), static_cast<unsigned long>(debug.status_registers[3]),
+        static_cast<unsigned long>(debug.control_registers[0]), static_cast<unsigned long>(debug.control_registers[1]),
+        static_cast<unsigned long>(debug.control_registers[2]), static_cast<unsigned long>(debug.control_registers[3]));
 }
 } // namespace
 

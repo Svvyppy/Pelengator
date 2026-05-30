@@ -34,9 +34,10 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/peleng/Peleng.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/peleng/Filter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/peleng/DelayEstimator.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/peleng/UartTelemetry.cpp
     ${BOARD_DIR}/Hw.cpp
     ${BOARD_DIR}/HwInit.cpp
+    ${BOARD_DIR}/SignalAcquisition.cpp
+    ${BOARD_DIR}/UartTelemetry.cpp
     ${BOARD_GEN_DIR}/cordic.c
     ${BOARD_GEN_DIR}/stm32g4xx_it.c
     ${BOARD_GEN_DIR}/stm32g4xx_hal_msp.c

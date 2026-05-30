@@ -7,7 +7,7 @@ constexpr float kMicrosecondsPerSecond = 1000000.0f;
 namespace peleng {
 ThresholdCrossing FindThresholdCrossing(const HalfBuffer& buffer)
 {
-    for (std::size_t index = 0U; index < DMA_HALF_BUFFER_SIZE; ++index) {
+    for (std::size_t index = 0U; index < SIGNAL_BLOCK_SIZE; ++index) {
         const q15_t value = buffer[index];
         if (value > SIGNAL_THRESHOLD_Q15) {
             return ThresholdCrossing{ .index = index, .value = value, .found = true };

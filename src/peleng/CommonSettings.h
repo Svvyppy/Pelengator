@@ -31,10 +31,10 @@ static inline constexpr const int16_t SIGNAL_THRESHOLD_Q15 = 4000;
 /** @brief ADC sampling frequency in hertz. */
 static inline constexpr const float SAMPLE_RATE_HZ = 250000.0f;
 
-/** @brief Samples available on each DMA half-transfer event. */
-static inline constexpr const std::size_t DMA_HALF_BUFFER_SIZE = BUFFER_SIZE;
-/** @brief Total circular DMA buffer size per channel (half + half). */
-static inline constexpr const std::size_t DMA_FULL_BUFFER_SIZE = BUFFER_SIZE * 2U;
+/** @brief Samples processed when one acquisition block is ready. */
+static inline constexpr const std::size_t SIGNAL_BLOCK_SIZE = BUFFER_SIZE;
+/** @brief Samples kept by the acquisition backend per channel. */
+static inline constexpr const std::size_t SIGNAL_SAMPLE_BUFFER_SIZE = BUFFER_SIZE * 2U;
 
 /** @brief Distance between 1 and 2 hydrophone. */
 static inline constexpr float const Dist1n2 = 0.235;
