@@ -10,11 +10,10 @@ void CheckHalStatus(HAL_StatusTypeDef status)
     }
 }
 
-void Adc1Init(ADC_HandleTypeDef *hadc)
+namespace
 {
-    ADC_MultiModeTypeDef multimode = {0};
-    ADC_ChannelConfTypeDef sConfig = {0};
-    hadc->Instance = ADC1;
+void InitAdcCommon(ADC_HandleTypeDef *hadc)
+{
     hadc->Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
     hadc->Init.Resolution = ADC_RESOLUTION_12B;
     hadc->Init.DataAlign = ADC_DATAALIGN_RIGHT;
@@ -22,7 +21,7 @@ void Adc1Init(ADC_HandleTypeDef *hadc)
     hadc->Init.ScanConvMode = ADC_SCAN_DISABLE;
     hadc->Init.EOCSelection = ADC_EOC_SINGLE_CONV;
     hadc->Init.LowPowerAutoWait = DISABLE;
-    hadc->Init.ContinuousConvMode = ENABLE;
+    hadc->Init.ContinuousConvMode = DISABLE;
     hadc->Init.NbrOfConversion = 1;
     hadc->Init.DiscontinuousConvMode = DISABLE;
     hadc->Init.ExternalTrigConv = ADC_EXTERNALTRIG_T6_TRGO;
@@ -30,19 +29,31 @@ void Adc1Init(ADC_HandleTypeDef *hadc)
     hadc->Init.DMAContinuousRequests = ENABLE;
     hadc->Init.Overrun = ADC_OVR_DATA_PRESERVED;
     hadc->Init.OversamplingMode = DISABLE;
-    if (HAL_ADC_Init(hadc) != HAL_OK)
-    {
-        Error_Handler();
-    }
+}
+
+void FinalizeAdcInit(ADC_HandleTypeDef *hadc)
+{
+    CheckHalStatus(HAL_ADC_Init(hadc));
+    CheckHalStatus(HAL_ADCEx_Calibration_Start(hadc, ADC_SINGLE_ENDED));
+}
+} // namespace
+
+void Adc1Init(ADC_HandleTypeDef *hadc)
+{
+    ADC_MultiModeTypeDef multimode = {0};
+    ADC_ChannelConfTypeDef sConfig = {0};
+    hadc->Instance = ADC1;
+    InitAdcCommon(hadc);
+    FinalizeAdcInit(hadc);
     multimode.Mode = ADC_MODE_INDEPENDENT;
     if (HAL_ADCEx_MultiModeConfigChannel(hadc, &multimode) != HAL_OK)
     {
         Error_Handler();
     }
 
-    sConfig.Channel = ADC_CHANNEL_4;
+    sConfig.Channel = ADC_CHANNEL_VREFINT;
     sConfig.Rank = ADC_REGULAR_RANK_1;
-    sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+    sConfig.SamplingTime = ADC_SAMPLETIME_640CYCLES_5;
     sConfig.SingleDiff = ADC_SINGLE_ENDED;
     sConfig.OffsetNumber = ADC_OFFSET_NONE;
     sConfig.Offset = 0;
@@ -56,29 +67,12 @@ void Adc2Init(ADC_HandleTypeDef *hadc)
 {
     ADC_ChannelConfTypeDef sConfig = {0};
     hadc->Instance = ADC2;
-    hadc->Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
-    hadc->Init.Resolution = ADC_RESOLUTION_12B;
-    hadc->Init.DataAlign = ADC_DATAALIGN_RIGHT;
-    hadc->Init.GainCompensation = 0;
-    hadc->Init.ScanConvMode = ADC_SCAN_DISABLE;
-    hadc->Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-    hadc->Init.LowPowerAutoWait = DISABLE;
-    hadc->Init.ContinuousConvMode = ENABLE;
-    hadc->Init.NbrOfConversion = 1;
-    hadc->Init.DiscontinuousConvMode = ENABLE;
-    hadc->Init.ExternalTrigConv = ADC_EXTERNALTRIG_T6_TRGO;
-    hadc->Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
-    hadc->Init.DMAContinuousRequests = ENABLE;
-    hadc->Init.Overrun = ADC_OVR_DATA_PRESERVED;
-    hadc->Init.OversamplingMode = DISABLE;
-    if (HAL_ADC_Init(hadc) != HAL_OK)
-    {
-        Error_Handler();
-    }
+    InitAdcCommon(hadc);
+    FinalizeAdcInit(hadc);
 
     sConfig.Channel = ADC_CHANNEL_12;
     sConfig.Rank = ADC_REGULAR_RANK_1;
-    sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+    sConfig.SamplingTime = ADC_SAMPLETIME_92CYCLES_5;
     sConfig.SingleDiff = ADC_SINGLE_ENDED;
     sConfig.OffsetNumber = ADC_OFFSET_NONE;
     sConfig.Offset = 0;
@@ -92,29 +86,12 @@ void Adc4Init(ADC_HandleTypeDef *hadc)
 {
     ADC_ChannelConfTypeDef sConfig = {0};
     hadc->Instance = ADC4;
-    hadc->Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
-    hadc->Init.Resolution = ADC_RESOLUTION_12B;
-    hadc->Init.DataAlign = ADC_DATAALIGN_RIGHT;
-    hadc->Init.GainCompensation = 0;
-    hadc->Init.ScanConvMode = ADC_SCAN_DISABLE;
-    hadc->Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-    hadc->Init.LowPowerAutoWait = DISABLE;
-    hadc->Init.ContinuousConvMode = ENABLE;
-    hadc->Init.NbrOfConversion = 1;
-    hadc->Init.DiscontinuousConvMode = DISABLE;
-    hadc->Init.ExternalTrigConv = ADC_EXTERNALTRIG_T6_TRGO;
-    hadc->Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
-    hadc->Init.DMAContinuousRequests = ENABLE;
-    hadc->Init.Overrun = ADC_OVR_DATA_PRESERVED;
-    hadc->Init.OversamplingMode = DISABLE;
-    if (HAL_ADC_Init(hadc) != HAL_OK)
-    {
-        Error_Handler();
-    }
+    InitAdcCommon(hadc);
+    FinalizeAdcInit(hadc);
 
     sConfig.Channel = ADC_CHANNEL_5;
     sConfig.Rank = ADC_REGULAR_RANK_1;
-    sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+    sConfig.SamplingTime = ADC_SAMPLETIME_92CYCLES_5;
     sConfig.SingleDiff = ADC_SINGLE_ENDED;
     sConfig.OffsetNumber = ADC_OFFSET_NONE;
     sConfig.Offset = 0;
@@ -128,29 +105,12 @@ void Adc5Init(ADC_HandleTypeDef *hadc)
 {
     ADC_ChannelConfTypeDef sConfig = {0};
     hadc->Instance = ADC5;
-    hadc->Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
-    hadc->Init.Resolution = ADC_RESOLUTION_12B;
-    hadc->Init.DataAlign = ADC_DATAALIGN_RIGHT;
-    hadc->Init.GainCompensation = 0;
-    hadc->Init.ScanConvMode = ADC_SCAN_DISABLE;
-    hadc->Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-    hadc->Init.LowPowerAutoWait = DISABLE;
-    hadc->Init.ContinuousConvMode = ENABLE;
-    hadc->Init.NbrOfConversion = 1;
-    hadc->Init.DiscontinuousConvMode = DISABLE;
-    hadc->Init.ExternalTrigConv = ADC_EXTERNALTRIG_T6_TRGO;
-    hadc->Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
-    hadc->Init.DMAContinuousRequests = ENABLE;
-    hadc->Init.Overrun = ADC_OVR_DATA_PRESERVED;
-    hadc->Init.OversamplingMode = DISABLE;
-    if (HAL_ADC_Init(hadc) != HAL_OK)
-    {
-        Error_Handler();
-    }
+    InitAdcCommon(hadc);
+    FinalizeAdcInit(hadc);
 
     sConfig.Channel = ADC_CHANNEL_VOPAMP4;
     sConfig.Rank = ADC_REGULAR_RANK_1;
-    sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+    sConfig.SamplingTime = ADC_SAMPLETIME_92CYCLES_5;
     sConfig.SingleDiff = ADC_SINGLE_ENDED;
     sConfig.OffsetNumber = ADC_OFFSET_NONE;
     sConfig.Offset = 0;

@@ -2,6 +2,8 @@
 
 #include "DelayEstimator.hpp"
 
+class Peleng;
+
 /**
  * @brief Queue one delay telemetry frame for non-blocking UART transmit.
  * @return true when frame was queued, false when queue is full.
@@ -17,6 +19,7 @@ bool SendEventTelemetryUart(const char *message);
  * @brief Progress UART TX state machine (call from main loop).
  */
 void UartTelemetryProcess(void);
+void SetPelengDebugSource(Peleng *peleng);
 
 class EventLogger
 {

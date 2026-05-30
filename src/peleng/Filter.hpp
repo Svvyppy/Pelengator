@@ -30,7 +30,7 @@ public:
      * @param sample_count Number of samples to process.
      * @note sample_count must be a multiple of BLOCK_SIZE.
      */
-    void ApplyEnvelope(const float *input, float *output, std::size_t sample_count);
+    void ApplyEnvelope(const float* input, float* output, std::size_t sample_count);
 
 private:
     arm_fir_instance_f32 fir_instance_{};

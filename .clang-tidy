@@ -1,0 +1,22 @@
+---
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  google-*,
+  misc-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -misc-use-anonymous-namespace,
+  -modernize-use-trailing-return-type,
+  -readability-identifier-length
+
+CheckOptions:
+  - key: misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+    value: true
+...

@@ -17,6 +17,17 @@
 class Peleng
 {
 public:
+    struct DebugSnapshot
+    {
+        std::array<uint16_t, ADC_CHANNELS> first_samples{};
+        std::array<uint32_t, ADC_CHANNELS> dma_cndtr{};
+        std::array<uint32_t, ADC_CHANNELS> adc_dr{};
+        std::array<uint32_t, ADC_CHANNELS> adc_isr{};
+        std::array<uint32_t, ADC_CHANNELS> adc_cr{};
+        std::array<uint32_t, ADC_CHANNELS> half_counts{};
+        std::array<uint32_t, ADC_CHANNELS> full_counts{};
+    };
+
     /** @brief Construct processing pipeline and internal state. */
     Peleng();
     ~Peleng() = default;
@@ -37,6 +48,7 @@ public:
      * @return true if a new delay frame was available and copied.
      */
     bool TryGetLatestDelays(DelayMeasurements *out);
+    void FillDebugSnapshot(DebugSnapshot *out) const;
 
 private:
     // ADC DMA is configured for halfword transfers, so each sample occupies 16 bits in RAM.
@@ -54,10 +66,13 @@ private:
 
     volatile bool adc_half_flag_ = false;
     volatile bool adc_full_flag_ = false;
+    std::array<uint32_t, ADC_CHANNELS> dma_half_counts_{};
+    std::array<uint32_t, ADC_CHANNELS> dma_full_counts_{};
 
     void InitAdcs();
     void ProcessHalfTransfer(std::size_t start_index);
     static void ConvertAdcToF32(const uint16_t *source, float *destination, std::size_t length);
+    static std::size_t AdcHandleToIndex(const ADC_HandleTypeDef *hadc);
 };
 
 uint32_t PelengGetDmaHalfCount(void);

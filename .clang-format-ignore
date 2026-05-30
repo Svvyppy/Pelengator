@@ -1,0 +1,5 @@
+build*/**
+Drivers/**
+
+src/platforms/devboard/stm32_gen/**
+src/platforms/devboard/startup/**

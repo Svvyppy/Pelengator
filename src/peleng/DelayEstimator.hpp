@@ -42,8 +42,7 @@ struct ThresholdCrossing
     bool found = false;
 };
 
-namespace peleng
-{
+namespace peleng {
 /** @brief Half-frame envelope buffer type for one channel. */
 using HalfBuffer = std::array<float, DMA_HALF_BUFFER_SIZE>;
 /** @brief Envelope buffers for all channels in one processing step. */
@@ -52,11 +51,11 @@ using EnvelopeBuffers = std::array<HalfBuffer, ADC_CHANNELS>;
 /**
  * @brief Find first threshold crossing in one channel envelope.
  */
-ThresholdCrossing FindThresholdCrossing(const HalfBuffer &buffer);
+ThresholdCrossing FindThresholdCrossing(const HalfBuffer& buffer);
 /**
  * @brief Compute inter-channel delays from current envelope buffers.
  */
-DelayMeasurements EstimateDelayMeasurements(const EnvelopeBuffers &buffers);
+DelayMeasurements EstimateDelayMeasurements(const EnvelopeBuffers& buffers);
 /**
  * @brief Convert delay in samples to microseconds using configured sample rate.
  */

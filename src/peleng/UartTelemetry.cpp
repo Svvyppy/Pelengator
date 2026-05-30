@@ -28,6 +28,7 @@ struct UartTelemetryQueue
 UartTelemetryQueue g_queue{};
 uint32_t g_last_alive_tick = 0U;
 uint32_t g_event_drop_count = 0U;
+Peleng *g_peleng_debug = nullptr;
 
 std::size_t NextIndex(std::size_t index) { return (index + 1U) % kQueueDepth; }
 
@@ -146,11 +147,17 @@ void QueueAliveMessageIfDue(void)
     std::size_t queued = 0U;
     const uint32_t dma_half = PelengGetDmaHalfCount();
     const uint32_t dma_full = PelengGetDmaFullCount();
+    Peleng::DebugSnapshot debug{};
     {
         const uint32_t primask = EnterCritical();
         drops = g_event_drop_count;
         queued = g_queue.count;
         ExitCritical(primask);
+    }
+
+    if (g_peleng_debug != nullptr)
+    {
+        g_peleng_debug->FillDebugSnapshot(&debug);
     }
 
     if (EnqueueFormattedMessage("ALIVE t=%lu RS485=TX q=%lu drop=%lu dmaH=%lu dmaF=%lu\\r\\n",
@@ -160,6 +167,26 @@ void QueueAliveMessageIfDue(void)
     {
         g_last_alive_tick = now;
     }
+
+    (void)EnqueueFormattedMessage(
+        "ADC raw=%u,%u,%u,%u cndtr=%lu,%lu,%lu,%lu hc=%lu,%lu,%lu,%lu fc=%lu,%lu,%lu,%lu\\r\\n",
+        static_cast<unsigned>(debug.first_samples[0]), static_cast<unsigned>(debug.first_samples[1]),
+        static_cast<unsigned>(debug.first_samples[2]), static_cast<unsigned>(debug.first_samples[3]),
+        static_cast<unsigned long>(debug.dma_cndtr[0]), static_cast<unsigned long>(debug.dma_cndtr[1]),
+        static_cast<unsigned long>(debug.dma_cndtr[2]), static_cast<unsigned long>(debug.dma_cndtr[3]),
+        static_cast<unsigned long>(debug.half_counts[0]), static_cast<unsigned long>(debug.half_counts[1]),
+        static_cast<unsigned long>(debug.half_counts[2]), static_cast<unsigned long>(debug.half_counts[3]),
+        static_cast<unsigned long>(debug.full_counts[0]), static_cast<unsigned long>(debug.full_counts[1]),
+        static_cast<unsigned long>(debug.full_counts[2]), static_cast<unsigned long>(debug.full_counts[3]));
+
+    (void)EnqueueFormattedMessage(
+        "ADC dr=%lu,%lu,%lu,%lu isr=%08lX,%08lX,%08lX,%08lX cr=%08lX,%08lX,%08lX,%08lX\\r\\n",
+        static_cast<unsigned long>(debug.adc_dr[0]), static_cast<unsigned long>(debug.adc_dr[1]),
+        static_cast<unsigned long>(debug.adc_dr[2]), static_cast<unsigned long>(debug.adc_dr[3]),
+        static_cast<unsigned long>(debug.adc_isr[0]), static_cast<unsigned long>(debug.adc_isr[1]),
+        static_cast<unsigned long>(debug.adc_isr[2]), static_cast<unsigned long>(debug.adc_isr[3]),
+        static_cast<unsigned long>(debug.adc_cr[0]), static_cast<unsigned long>(debug.adc_cr[1]),
+        static_cast<unsigned long>(debug.adc_cr[2]), static_cast<unsigned long>(debug.adc_cr[3]));
 }
 } // namespace
 
@@ -291,3 +318,5 @@ EventLogger &EventLogger::operator<<(const char *message)
 }
 
 EventLogger event{};
+
+void SetPelengDebugSource(Peleng *peleng) { g_peleng_debug = peleng; }
