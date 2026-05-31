@@ -2,7 +2,7 @@
 
 Embedded project for a 4-channel hydroacoustic direction finder on STM32G473.
 The firmware acquires synchronous ADC data from four hydrophone channels, estimates envelope fronts,
-computes relative delays (`1-2`, `1-3`, `1-4`), and sends telemetry over UART.
+computes relative delays (`1-2`, `1-3`, `1-4`), estimates bearing/elevation, and sends telemetry over UART.
 
 ## 1. Device Logic Overview
 
@@ -10,33 +10,41 @@ The device implements a deterministic streaming DSP pipeline:
 
 1. ADC sampling (`Fs = 250 kHz`) is triggered by TIM6 TRGO.
 2. Four ADC peripherals run in DMA circular mode with half/full transfer events.
-3. Raw 12-bit ADC codes are converted to centered/scaled `float32` samples.
+3. Raw 12-bit ADC codes are converted to centered/scaled `q15_t` samples.
 4. Each channel is squared and passed through FIR low-pass filtering to get an envelope.
 5. First threshold crossing index is detected per channel.
 6. Relative delays are computed vs channel 1:
    - `d12 = t2 - t1`
    - `d13 = t3 - t1`
    - `d14 = t4 - t1`
-7. Delays are converted to microseconds and sent through non-blocking UART telemetry queue.
+7. Delays are converted to microseconds.
+8. Direction is estimated from calibrated hydrophone geometry:
+   - `peleng_deg`: bearing angle in the XY plane, `atan2(y, x)`
+   - `elevation_deg`: elevation angle from the XY plane
+9. Delays and angles are sent through the non-blocking UART telemetry queue.
 
 ## 2. Data Path and Timing
 
 ### Sampling and buffering
 
 - Sample rate: `250000 Hz`
+- Sample interval: `4 us`
 - Half-buffer size per channel: `1024` samples
 - Full DMA buffer size per channel: `2048` samples
 - Half-buffer time window: `1024 / 250000 = 4.096 ms`
 
-This means DSP processing for one half-buffer must complete within ~4.096 ms to maintain margin.
+The firmware processes DMA half-buffers, not individual ADC samples. A single
+sample arrives every `4 us`, but the real-time DSP deadline is the half-buffer
+window: one processed block must complete within ~`4.096 ms` before that same
+half of the circular buffer is reused.
 
 ### Main processing stages
 
-- `ConvertAdcToF32`: remove DC midpoint and keep legacy scaling (`Q31-like`, `<<19`)
+- `ConvertAdcToSquaredQ15`: remove 12-bit ADC midpoint, scale to Q15 (`<<4`), and square in one pass
 - Envelope estimation:
-  - square: `arm_mult_f32`
-  - FIR: CMSIS-DSP `arm_fir_f32`
+  - FIR: CMSIS-DSP `arm_fir_q15`
 - Delay estimation by threshold crossing on envelope buffers
+- Direction estimation by least-squares TDOA geometry
 
 ## 3. Project Structure
 
@@ -55,15 +63,17 @@ This means DSP processing for one half-buffer must complete within ~4.096 ms to 
 
 ## 4. Current Telemetry Format
 
-Text line over UART (ASCII):
+Binary packet over UART:
 
-- valid delay frame:
-  - `D12=<samples>(<us>) D13=<samples>(<us>) D14=<samples>(<us>)`
-- no detections:
-  - `NO_SIGNAL`
+- `int16_t d12_us`
+- `int16_t d13_us`
+- `int16_t d14_us`
+- `float peleng_deg`
+- `float elevation_deg`
 
 UART output is queued and transmitted asynchronously.
 If queue is full, new message is dropped (`SendDelayTelemetryUart` returns `false`).
+Invalid frames are not queued.
 
 ## 5. Build and Flash
 
@@ -150,9 +160,9 @@ Main constants are in `src/peleng/CommonSettings.h`:
 
 - `SAMPLE_RATE_HZ`
 - `BUFFER_SIZE`
-- `DMA_HALF_BUFFER_SIZE`, `DMA_FULL_BUFFER_SIZE`
+- `SIGNAL_BLOCK_SIZE`, `SIGNAL_SAMPLE_BUFFER_SIZE`
 - `NUM_TAPS`, `BLOCK_SIZE`
-- `SIGNAL_THRESHOLD`
+- `SIGNAL_THRESHOLD_Q15`
 
 When changing these values, verify:
 
@@ -163,6 +173,9 @@ When changing these values, verify:
 ## 7. Real-Time and Safety Notes
 
 - DSP path is designed for deterministic half-buffer processing.
+- The C++ DSP path and CMSIS-DSP are compiled with `-O3` even in Debug
+  firmware, because unoptimized `-O0` code does not meet the half-buffer
+  deadline on the target.
 - UART uses non-blocking IT transmit to avoid stalling DSP loop.
 - Delay estimation currently uses first threshold crossing (fast, but sensitive to noise).
 
@@ -175,18 +188,21 @@ After any DSP or platform change:
 3. Renode smoke-test (`ctest --test-dir build/tests -R renode --output-on-failure`) should pass if Renode is installed.
 4. Verify ADC DMA half/full callbacks are firing.
 5. Verify UART telemetry stream continuity (no long pauses under load).
-6. Inject known inter-channel delay and check `d12/d13/d14` sign and magnitude.
+6. Watch `g_peleng_process_cycles_max`; at 170 MHz it must stay below
+   `g_signal_block_period_cycles = 696320` cycles for the current 1024-sample
+   block at 250 kHz.
+7. Inject known inter-channel delay and check `d12/d13/d14` sign and magnitude.
 
 ## 9. Recommended Next Improvements
 
 - Sub-sample delay refinement using cross-correlation around detected front.
-- Binary telemetry mode (compact framed packet).
+- Framed binary telemetry with packet version and checksum.
 - Host-side test harness for deterministic DSP regression checks.
 
 ## 10. Geometry Calibration and Angle Estimation
 
-This firmware currently reports inter-channel delays. To convert delays into bearing angle,
-calibrate array geometry and run a geometric model on top of `d12/d13/d14`.
+This firmware reports inter-channel delays plus bearing/elevation. Calibrate
+array geometry before trusting absolute angles.
 
 ### 10.1 Required calibration data
 
@@ -206,7 +222,7 @@ For each delay in samples:
 - `tau13 = d13 / Fs`
 - `tau14 = d14 / Fs`
 
-Equivalent range differences:
+Equivalent signed range differences:
 
 - `Delta12 = c * tau12`
 - `Delta13 = c * tau13`
@@ -214,14 +230,18 @@ Equivalent range differences:
 
 ### 10.3 Far-field approximation (direction vector)
 
-For far-field source, let unit direction vector be `u`.
-For each baseline `bi = pi - p1`:
+For far-field source, let unit direction vector `u` point from the array toward
+the source. Since `dij = tj - ti`, each baseline uses the opposite sign. For
+each baseline `bi = pi - p1`:
 
-- `dot(u, b2) = Delta12`
-- `dot(u, b3) = Delta13`
-- `dot(u, b4) = Delta14`
+- `dot(u, b2) = -Delta12`
+- `dot(u, b3) = -Delta13`
+- `dot(u, b4) = -Delta14`
 
-Solve (least-squares if needed), normalize `u`, then compute azimuth/elevation in your chosen frame.
+Solve (least-squares if needed), normalize `u`, then compute:
+
+- `peleng_deg = atan2(u.y, u.x)`
+- `elevation_deg = atan2(u.z, sqrt(u.x^2 + u.y^2))`
 
 ### 10.4 Practical calibration procedure
 

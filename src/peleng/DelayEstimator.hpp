@@ -36,11 +36,9 @@ struct DelayMeasurements
     float direction_y = 0.0f;
     /** @brief Direction z component from array toward source. */
     float direction_z = 0.0f;
-    /** @brief Horizontal bearing angle in degrees, atan2(y, x); 90 degrees points toward Y+. */
+    /** @brief Bearing angle in the XY plane in degrees, atan2(y, x); 90 degrees points toward Y+. */
     float peleng_deg = 0.0f;
-    /** @brief Alias for horizontal bearing angle in degrees. */
-    float azimuth_deg = 0.0f;
-    /** @brief Vertical elevation angle in degrees above the XY plane; 90 degrees points toward Z+. */
+    /** @brief Elevation angle in degrees from the XY plane; 90 degrees points toward Z+. */
     float elevation_deg = 0.0f;
 
     /** @brief True when all required threshold crossings were found. */

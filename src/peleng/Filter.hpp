@@ -32,6 +32,14 @@ public:
      */
     void ApplyEnvelope(const q15_t *input, q15_t *output, std::size_t sample_count);
 
+    /**
+     * @brief Apply FIR directly to a pre-squared Q15 envelope buffer.
+     * @param input Pointer to squared input samples.
+     * @param output Pointer to output samples.
+     * @param sample_count Number of samples to process.
+     */
+    void ApplyFir(const q15_t *input, q15_t *output, std::size_t sample_count);
+
 private:
     arm_fir_instance_q15 fir_instance_{};
     std::array<q15_t, SIGNAL_BLOCK_SIZE> square_buffer_{};

@@ -97,7 +97,6 @@ TEST_CASE("Direction estimator recovers vertical source direction", "[delay]")
     REQUIRE(NearlyEqual(delays.direction_y, 0.0f, 1e-4f));
     REQUIRE(NearlyEqual(delays.direction_z, 1.0f, 1e-4f));
     REQUIRE(NearlyEqual(delays.peleng_deg, 0.0f, 1e-4f));
-    REQUIRE(NearlyEqual(delays.azimuth_deg, 0.0f, 1e-4f));
     REQUIRE(NearlyEqual(delays.elevation_deg, 90.0f, 1e-4f));
 }
 
@@ -125,6 +124,27 @@ TEST_CASE("Direction estimator recovers Y positive bearing at 90 degrees", "[del
     REQUIRE(NearlyEqual(delays.direction_y, 1.0f, 1e-4f));
     REQUIRE(NearlyEqual(delays.direction_z, 0.0f, 1e-4f));
     REQUIRE(NearlyEqual(delays.peleng_deg, 90.0f, 1e-4f));
-    REQUIRE(NearlyEqual(delays.azimuth_deg, 90.0f, 1e-4f));
     REQUIRE(NearlyEqual(delays.elevation_deg, 0.0f, 1e-4f));
+}
+
+TEST_CASE("Direction estimator reports elevation from XY plane", "[delay]")
+{
+    constexpr float kSin30 = 0.5f;
+    constexpr float kCos30 = 0.8660254038f;
+    constexpr std::array<float, 3U> kDirection = {kCos30, 0.0f, kSin30};
+
+    DelayMeasurements delays{};
+    delays.valid = true;
+    delays.d12_us = ExpectedDelayMicroseconds(1U, kDirection);
+    delays.d13_us = ExpectedDelayMicroseconds(2U, kDirection);
+    delays.d14_us = ExpectedDelayMicroseconds(3U, kDirection);
+
+    peleng::EstimateDirectionLeastSquares(delays);
+
+    REQUIRE(delays.angles_valid);
+    REQUIRE(NearlyEqual(delays.direction_x, kCos30, 1e-4f));
+    REQUIRE(NearlyEqual(delays.direction_y, 0.0f, 1e-4f));
+    REQUIRE(NearlyEqual(delays.direction_z, kSin30, 1e-4f));
+    REQUIRE(NearlyEqual(delays.peleng_deg, 0.0f, 1e-4f));
+    REQUIRE(NearlyEqual(delays.elevation_deg, 30.0f, 1e-4f));
 }

@@ -23,8 +23,11 @@ public:
 
     /** @brief Initialize signal acquisition path. */
     void Init();
-    /** @brief Run one non-blocking processing iteration in the main loop. */
-    void Process();
+    /**
+     * @brief Run one non-blocking processing iteration in the main loop.
+     * @return true when a ready acquisition block was processed.
+     */
+    bool Process();
 
     /**
      * @brief Get latest computed channel delays.
@@ -46,5 +49,5 @@ private:
     bool has_new_delays_ = false;
 
     void ProcessHalfTransfer(std::size_t start_index);
-    static void ConvertAdcToQ15(const uint16_t* source, q15_t* destination, std::size_t length);
+    static void ConvertAdcToSquaredQ15(const uint16_t* source, q15_t* destination, std::size_t length);
 };

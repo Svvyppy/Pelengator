@@ -18,8 +18,8 @@ TEST_CASE("Envelope filter reaches expected steady-state for constant input", "[
 {
     Filter filter;
 
-    std::array<q15_t, DMA_HALF_BUFFER_SIZE> input{};
-    std::array<q15_t, DMA_HALF_BUFFER_SIZE> output{};
+    std::array<q15_t, SIGNAL_BLOCK_SIZE> input{};
+    std::array<q15_t, SIGNAL_BLOCK_SIZE> output{};
     input.fill(16384);
     output.fill(0);
 
@@ -34,8 +34,8 @@ TEST_CASE("Envelope filter returns zero for zero input", "[filter]")
 {
     Filter filter;
 
-    std::array<q15_t, DMA_HALF_BUFFER_SIZE> input{};
-    std::array<q15_t, DMA_HALF_BUFFER_SIZE> output{};
+    std::array<q15_t, SIGNAL_BLOCK_SIZE> input{};
+    std::array<q15_t, SIGNAL_BLOCK_SIZE> output{};
     input.fill(0);
     output.fill(123);
 

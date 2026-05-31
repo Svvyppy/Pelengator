@@ -4,8 +4,12 @@ set(MX_Defines_Syms
     $<$<CONFIG:Debug>:DEBUG>
 )
 
-# This warning is only relevant for the C++ sources.
-target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-volatile>)
+# The hot DSP path is C++, so keep application C++ optimized even in Debug
+# firmware while retaining debug info from the toolchain file.
+target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE
+    $<$<COMPILE_LANGUAGE:CXX>:-Wno-volatile>
+    $<$<COMPILE_LANGUAGE:CXX>:-O3>
+)
 
 if(NOT DEFINED BOARD OR BOARD STREQUAL "")
     set(BOARD "devboard")

@@ -10,13 +10,16 @@ void Peleng::Init()
     platform::StartSignalAcquisition(&sample_buffers_);
 }
 
-void Peleng::Process()
+bool Peleng::Process()
 {
     platform::SignalBlock block = platform::SignalBlock::FirstHalf;
     if (platform::ConsumeReadySignalBlock(&block)) {
         const std::size_t start_index = (block == platform::SignalBlock::FirstHalf) ? 0U : SIGNAL_BLOCK_SIZE;
         ProcessHalfTransfer(start_index);
+        return true;
     }
+
+    return false;
 }
 
 bool Peleng::TryGetLatestDelays(DelayMeasurements* out)
@@ -38,9 +41,9 @@ void Peleng::FillDebugSnapshot(platform::SignalAcquisitionDebug* out) const
 void Peleng::ProcessHalfTransfer(std::size_t start_index)
 {
     for (std::size_t channel = 0U; channel < ADC_CHANNELS; ++channel) {
-        ConvertAdcToQ15(
+        ConvertAdcToSquaredQ15(
             sample_buffers_[channel].data() + start_index, work_buffers_[channel].data(), SIGNAL_BLOCK_SIZE);
-        envelope_filters_[channel].ApplyEnvelope(
+        envelope_filters_[channel].ApplyFir(
             work_buffers_[channel].data(), envelope_buffers_[channel].data(), SIGNAL_BLOCK_SIZE);
     }
 
@@ -48,15 +51,17 @@ void Peleng::ProcessHalfTransfer(std::size_t start_index)
     has_new_delays_ = true;
 }
 
-void Peleng::ConvertAdcToQ15(const uint16_t* source, q15_t* destination, std::size_t length)
+void Peleng::ConvertAdcToSquaredQ15(const uint16_t* source, q15_t* destination, std::size_t length)
 {
     constexpr uint32_t kAdcMask12Bit = 0x0FFFU;
     constexpr int32_t kAdcMidpoint   = 2048;
     constexpr int32_t kQ15Shift      = 4;
+    constexpr int32_t kQ15Max        = 32767;
 
     for (std::size_t index = 0U; index < length; ++index) {
-        const int32_t raw      = static_cast<int32_t>(source[index] & kAdcMask12Bit);
-        const int32_t centered = raw - kAdcMidpoint;
-        destination[index]     = static_cast<q15_t>(centered << kQ15Shift);
+        const int32_t raw        = static_cast<int32_t>(source[index] & kAdcMask12Bit);
+        const int32_t sample_q15 = (raw - kAdcMidpoint) << kQ15Shift;
+        const int32_t squared    = (sample_q15 * sample_q15) >> 15;
+        destination[index]       = static_cast<q15_t>((squared > kQ15Max) ? kQ15Max : squared);
     }
 }

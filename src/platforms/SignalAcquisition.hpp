@@ -26,6 +26,8 @@ struct SignalAcquisitionDebug
     std::array<uint32_t, ADC_CHANNELS> remaining_transfers{};
     std::array<uint32_t, ADC_CHANNELS> first_half_counts{};
     std::array<uint32_t, ADC_CHANNELS> second_half_counts{};
+    uint32_t ready_blocks_pending = 0U;
+    uint32_t ready_block_overflows = 0U;
 };
 
 void StartSignalAcquisition(SignalSampleBuffers* buffers);

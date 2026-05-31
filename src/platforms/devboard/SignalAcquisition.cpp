@@ -7,13 +7,29 @@
 
 namespace
 {
+constexpr uint32_t kReadyBlockQueueDepth = 4U;
+
 platform::SignalSampleBuffers* g_buffers = nullptr;
-volatile bool g_first_half_ready = false;
-volatile bool g_second_half_ready = false;
-volatile uint32_t g_first_half_count = 0U;
-volatile uint32_t g_second_half_count = 0U;
-std::array<uint32_t, ADC_CHANNELS> g_first_half_counts{};
-std::array<uint32_t, ADC_CHANNELS> g_second_half_counts{};
+std::array<volatile uint32_t, ADC_CHANNELS> g_first_half_counts{};
+std::array<volatile uint32_t, ADC_CHANNELS> g_second_half_counts{};
+volatile uint32_t g_first_half_completed = 0U;
+volatile uint32_t g_second_half_completed = 0U;
+volatile platform::SignalBlock g_ready_blocks[kReadyBlockQueueDepth] = {};
+volatile uint32_t g_ready_block_head = 0U;
+volatile uint32_t g_ready_block_count = 0U;
+volatile uint32_t g_ready_block_overflow_count = 0U;
+
+uint32_t EnterCritical(void)
+{
+    const uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    return primask;
+}
+
+void ExitCritical(uint32_t primask)
+{
+    __set_PRIMASK(primask);
+}
 
 void CheckHalStatus(HAL_StatusTypeDef status)
 {
@@ -50,26 +66,82 @@ std::size_t AdcHandleToIndex(const ADC_HandleTypeDef* hadc)
     return ADC_CHANNELS;
 }
 
+uint32_t MinimumCount(const std::array<volatile uint32_t, ADC_CHANNELS>& counts)
+{
+    uint32_t minimum = counts[0];
+    for (std::size_t i = 1U; i < ADC_CHANNELS; ++i)
+    {
+        if (counts[i] < minimum)
+        {
+            minimum = counts[i];
+        }
+    }
+
+    return minimum;
+}
+
+void EnqueueReadyBlock(platform::SignalBlock block)
+{
+    if (g_ready_block_count >= kReadyBlockQueueDepth)
+    {
+        ++g_ready_block_overflow_count;
+        return;
+    }
+
+    const uint32_t slot = (g_ready_block_head + g_ready_block_count) % kReadyBlockQueueDepth;
+    g_ready_blocks[slot] = block;
+    ++g_ready_block_count;
+}
+
+void PublishCompletedBlocks(const std::array<volatile uint32_t, ADC_CHANNELS>& counts,
+                            volatile uint32_t* completed_count,
+                            platform::SignalBlock block)
+{
+    const uint32_t complete_count = MinimumCount(counts);
+    while (*completed_count < complete_count)
+    {
+        ++(*completed_count);
+        EnqueueReadyBlock(block);
+    }
+}
+
+void ResetReadyState()
+{
+    for (std::size_t i = 0U; i < ADC_CHANNELS; ++i)
+    {
+        g_first_half_counts[i] = 0U;
+        g_second_half_counts[i] = 0U;
+    }
+
+    g_first_half_completed = 0U;
+    g_second_half_completed = 0U;
+    g_ready_block_head = 0U;
+    g_ready_block_count = 0U;
+    g_ready_block_overflow_count = 0U;
+}
+
 void NoteFirstHalfReady(ADC_HandleTypeDef* hadc)
 {
     const std::size_t index = AdcHandleToIndex(hadc);
-    if (index < ADC_CHANNELS)
+    if (index >= ADC_CHANNELS)
     {
-        ++g_first_half_counts[index];
+        return;
     }
-    ++g_first_half_count;
-    g_first_half_ready = true;
+
+    ++g_first_half_counts[index];
+    PublishCompletedBlocks(g_first_half_counts, &g_first_half_completed, platform::SignalBlock::FirstHalf);
 }
 
 void NoteSecondHalfReady(ADC_HandleTypeDef* hadc)
 {
     const std::size_t index = AdcHandleToIndex(hadc);
-    if (index < ADC_CHANNELS)
+    if (index >= ADC_CHANNELS)
     {
-        ++g_second_half_counts[index];
+        return;
     }
-    ++g_second_half_count;
-    g_second_half_ready = true;
+
+    ++g_second_half_counts[index];
+    PublishCompletedBlocks(g_second_half_counts, &g_second_half_completed, platform::SignalBlock::SecondHalf);
 }
 } // namespace
 
@@ -83,6 +155,7 @@ void StartSignalAcquisition(SignalSampleBuffers* buffers)
     }
 
     g_buffers = buffers;
+    ResetReadyState();
 
     HwInstances* hw = GetHwInstances();
     HAL_TIM_Base_Stop(&hw->htim6);
@@ -109,21 +182,18 @@ bool ConsumeReadySignalBlock(SignalBlock* block)
         return false;
     }
 
-    if (g_first_half_ready)
+    const uint32_t primask = EnterCritical();
+    if (g_ready_block_count == 0U)
     {
-        g_first_half_ready = false;
-        *block = SignalBlock::FirstHalf;
-        return true;
+        ExitCritical(primask);
+        return false;
     }
 
-    if (g_second_half_ready)
-    {
-        g_second_half_ready = false;
-        *block = SignalBlock::SecondHalf;
-        return true;
-    }
-
-    return false;
+    *block = g_ready_blocks[g_ready_block_head];
+    g_ready_block_head = (g_ready_block_head + 1U) % kReadyBlockQueueDepth;
+    --g_ready_block_count;
+    ExitCritical(primask);
+    return true;
 }
 
 void FillSignalAcquisitionDebug(SignalAcquisitionDebug* out, const SignalSampleBuffers& buffers)
@@ -148,11 +218,13 @@ void FillSignalAcquisitionDebug(SignalAcquisitionDebug* out, const SignalSampleB
         out->second_half_counts[i] = g_second_half_counts[i];
         out->remaining_transfers[i] = (hadc->DMA_Handle != nullptr) ? hadc->DMA_Handle->Instance->CNDTR : 0U;
     }
+    out->ready_blocks_pending = g_ready_block_count;
+    out->ready_block_overflows = g_ready_block_overflow_count;
 }
 
-uint32_t GetSignalFirstHalfReadyCount() { return g_first_half_count; }
+uint32_t GetSignalFirstHalfReadyCount() { return g_first_half_completed; }
 
-uint32_t GetSignalSecondHalfReadyCount() { return g_second_half_count; }
+uint32_t GetSignalSecondHalfReadyCount() { return g_second_half_completed; }
 
 } // namespace platform
 

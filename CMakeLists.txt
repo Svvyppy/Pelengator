@@ -71,10 +71,11 @@ target_include_directories(CMSISDSP PRIVATE
     ${CMSIS_CORE_ROOT}/Include
 )
 
-# Use higher optimization only for the DSP library in Release builds.
+# The real-time DSP path must stay optimized even in Debug firmware; otherwise
+# the half-buffer processing time is dominated by unoptimized CMSIS-DSP code.
 target_compile_options(CMSISDSP PRIVATE
-    $<$<CONFIG:Release>:-O3>
-    $<$<CONFIG:Release>:-ffast-math>
+    -O3
+    -ffast-math
 )
 
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE

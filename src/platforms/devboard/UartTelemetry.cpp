@@ -26,14 +26,14 @@ UartTelemetryQueue g_queue{};
 
 struct DelayTelemetryPacket
 {
-    uint8_t d12_us = 0U;
-    uint8_t d13_us = 0U;
-    uint8_t d14_us = 0U;
+    int16_t d12_us = 0;
+    int16_t d13_us = 0;
+    int16_t d14_us = 0;
     float peleng_deg = 0.0f;
     float elevation_deg = 0.0f;
 } __attribute__((packed));
 
-static_assert(sizeof(DelayTelemetryPacket) == 11U);
+static_assert(sizeof(DelayTelemetryPacket) == 14U);
 
 std::size_t NextIndex(std::size_t index) { return (index + 1U) % kQueueDepth; }
 
@@ -45,18 +45,21 @@ void SetRs485DirectionRx(void) { HAL_GPIO_WritePin(TX_En_GPIO_Port, TX_En_Pin, G
 
 bool IsInIsrContext(void) { return (__get_IPSR() != 0U); }
 
-uint8_t FloatMicrosecondsToU8(float value)
+int16_t FloatMicrosecondsToI16(float value)
 {
-    if (value <= 0.0f)
+    constexpr float kMinInt16AsFloat = -32768.0f;
+    constexpr float kMaxInt16AsFloat = 32767.0f;
+
+    if (value <= kMinInt16AsFloat)
     {
-        return 0U;
+        return -32768;
     }
-    if (value >= 255.0f)
+    if (value >= kMaxInt16AsFloat)
     {
-        return 255U;
+        return 32767;
     }
 
-    return static_cast<uint8_t>(std::lround(value));
+    return static_cast<int16_t>(std::lround(value));
 }
 
 uint32_t EnterCritical(void)
@@ -73,7 +76,7 @@ void ExitCritical(uint32_t primask)
 
 bool EnqueueBytes(const char *payload, uint16_t payload_length)
 {
-    if (payload == nullptr || payload_length == 0U)
+    if (payload == nullptr || payload_length == 0U || payload_length > kMessageCapacity)
     {
         return false;
     }
@@ -178,9 +181,9 @@ bool SendDelayTelemetryUart(const DelayMeasurements &delays)
     }
 
     const DelayTelemetryPacket packet{
-        .d12_us = FloatMicrosecondsToU8(delays.d12_us),
-        .d13_us = FloatMicrosecondsToU8(delays.d13_us),
-        .d14_us = FloatMicrosecondsToU8(delays.d14_us),
+        .d12_us = FloatMicrosecondsToI16(delays.d12_us),
+        .d13_us = FloatMicrosecondsToI16(delays.d13_us),
+        .d14_us = FloatMicrosecondsToI16(delays.d14_us),
         .peleng_deg = delays.peleng_deg,
         .elevation_deg = delays.elevation_deg,
     };
