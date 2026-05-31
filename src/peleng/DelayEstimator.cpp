@@ -55,6 +55,37 @@ constexpr Matrix3x3 Inverse3x3(const Matrix3x3& matrix)
 constexpr Matrix3x3 kBaselineMatrix = MakeBaselineMatrix();
 static_assert(Abs(Determinant3x3(kBaselineMatrix)) > 1e-9f);
 constexpr Matrix3x3 kInverseBaselineMatrix = Inverse3x3(kBaselineMatrix);
+
+int32_t MaxDelaySamplesBetween(std::size_t first_channel, std::size_t second_channel)
+{
+    float distance_squared = 0.0f;
+    for (std::size_t axis = 0U; axis < 3U; ++axis) {
+        const float delta = HYDROPHONE_POSITIONS_M[first_channel][axis] -
+                            HYDROPHONE_POSITIONS_M[second_channel][axis];
+        distance_squared += delta * delta;
+    }
+
+    const float distance_m = std::sqrt(distance_squared);
+    const float samples = (distance_m * SAMPLE_RATE_HZ) / SOUND_SPEED_MPS;
+    return static_cast<int32_t>(std::ceil(samples)) + SIGNAL_DELAY_MARGIN_SAMPLES;
+}
+
+bool AreArrivalTimesPhysicallyPlausible(const std::array<ThresholdCrossing, ADC_CHANNELS>& arrivals)
+{
+    for (std::size_t first_channel = 0U; first_channel < ADC_CHANNELS; ++first_channel) {
+        for (std::size_t second_channel = first_channel + 1U; second_channel < ADC_CHANNELS; ++second_channel) {
+            const auto first_index = static_cast<int32_t>(arrivals[first_channel].index);
+            const auto second_index = static_cast<int32_t>(arrivals[second_channel].index);
+            const int32_t delay_samples = second_index - first_index;
+            if (Abs(static_cast<float>(delay_samples)) >
+                static_cast<float>(MaxDelaySamplesBetween(first_channel, second_channel))) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
 }
 
 namespace peleng {
@@ -62,7 +93,7 @@ ThresholdCrossing FindThresholdCrossing(const HalfBuffer& buffer)
 {
     for (std::size_t index = 0U; index < SIGNAL_BLOCK_SIZE; ++index) {
         const q15_t value = buffer[index];
-        if (value > SIGNAL_THRESHOLD_Q15) {
+        if ((value >= SIGNAL_THRESHOLD_Q15) && (value <= SIGNAL_THRESHOLD_MAX_Q15)) {
             return ThresholdCrossing{ .index = index, .value = value, .found = true };
         }
     }
@@ -87,6 +118,11 @@ DelayMeasurements EstimateDelayMeasurements(const EnvelopeBuffers& buffers)
     }
 
     if (!current.valid) {
+        return current;
+    }
+
+    if (!AreArrivalTimesPhysicallyPlausible(arrivals)) {
+        current.valid = false;
         return current;
     }
 

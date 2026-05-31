@@ -26,12 +26,16 @@ static inline constexpr const std::size_t NUM_BLOCKS = BUFFER_SIZE / BLOCK_SIZE;
 
 /** @brief Number of hydrophone/ADC channels processed in parallel. */
 static inline constexpr const std::size_t ADC_CHANNELS = 4U;
-/** @brief Envelope threshold for arrival detection in Q15 units. */
-static inline constexpr const int16_t SIGNAL_THRESHOLD_Q15 = 4000;
+/** @brief Lower envelope threshold for arrival detection in Q15 units. */
+static inline constexpr const int16_t SIGNAL_THRESHOLD_Q15 = 700;
+/** @brief Upper envelope threshold; larger values are treated as signal body, not front. */
+static inline constexpr const int16_t SIGNAL_THRESHOLD_MAX_Q15 = 1000;
 /** @brief ADC sampling frequency in hertz. */
 static inline constexpr const float SAMPLE_RATE_HZ = 250000.0f;
 /** @brief Assumed speed of sound in water in meters per second. */
-static inline constexpr const float SOUND_SPEED_MPS = 1500.0f;
+static inline constexpr const float SOUND_SPEED_MPS = 1441.0f;
+/** @brief Extra tolerance for physically possible inter-channel delay checks. */
+static inline constexpr const int32_t SIGNAL_DELAY_MARGIN_SAMPLES = 16;
 
 /** @brief Samples processed when one acquisition block is ready. */
 static inline constexpr const std::size_t SIGNAL_BLOCK_SIZE = BUFFER_SIZE;
@@ -40,8 +44,8 @@ static inline constexpr const std::size_t SIGNAL_SAMPLE_BUFFER_SIZE = BUFFER_SIZ
 
 /** @brief Hydrophone coordinates in meters, indexed by logical channel. */
 static inline constexpr const float HYDROPHONE_POSITIONS_M[ADC_CHANNELS][3] = {
-    {0.0625f, 0.1175f, 0.0f},
-    {0.0625f, -0.1175f, 0.0f},
-    {0.0f, -0.037f, 0.220f},
-    {0.295f, 0.0f, 0.0f},
+    { 0.0625f,  0.1175f,   0.0f },
+    { 0.0625f, -0.1175f,   0.0f },
+    {    0.0f,  -0.037f, 0.220f },
+    { -0.295f,     0.0f,   0.0f },
 };

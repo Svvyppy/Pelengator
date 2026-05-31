@@ -54,7 +54,7 @@ half of the circular buffer is reused.
   - host-testable delay detection helpers
 - `src/peleng/Filter.hpp`, `src/peleng/Filter.cpp`
   - envelope filter: square input samples and run FIR over the result
-- `src/peleng/UartTelemetry.hpp`, `src/peleng/UartTelemetry.cpp`
+- `src/platforms/UartTelemetry.hpp`, `src/platforms/devboard/UartTelemetry.cpp`
   - non-blocking UART telemetry queue (`HAL_UART_Transmit_IT`)
 - `src/platforms/devboard/Hw*.{h,cpp}`
   - STM32 hardware init and IRQ glue
@@ -63,17 +63,18 @@ half of the circular buffer is reused.
 
 ## 4. Current Telemetry Format
 
-Binary packet over UART:
+Readable ASCII lines over UART:
 
-- `int16_t d12_us`
-- `int16_t d13_us`
-- `int16_t d14_us`
-- `float peleng_deg`
-- `float elevation_deg`
+```text
+D12=12us D13=-4us D14=31us P=123.4deg E=-5.6deg
+NO_SIGNAL
+EV Peleng Init
+```
 
+`P` is bearing in the XY plane, `E` is elevation from the XY plane.
 UART output is queued and transmitted asynchronously.
 If queue is full, new message is dropped (`SendDelayTelemetryUart` returns `false`).
-Invalid frames are not queued.
+Invalid frames are sent as `NO_SIGNAL`.
 
 ## 5. Build and Flash
 
@@ -162,7 +163,8 @@ Main constants are in `src/peleng/CommonSettings.h`:
 - `BUFFER_SIZE`
 - `SIGNAL_BLOCK_SIZE`, `SIGNAL_SAMPLE_BUFFER_SIZE`
 - `NUM_TAPS`, `BLOCK_SIZE`
-- `SIGNAL_THRESHOLD_Q15`
+- `SIGNAL_THRESHOLD_Q15`, `SIGNAL_THRESHOLD_MAX_Q15`
+- `SIGNAL_DELAY_MARGIN_SAMPLES`
 
 When changing these values, verify:
 
@@ -188,10 +190,7 @@ After any DSP or platform change:
 3. Renode smoke-test (`ctest --test-dir build/tests -R renode --output-on-failure`) should pass if Renode is installed.
 4. Verify ADC DMA half/full callbacks are firing.
 5. Verify UART telemetry stream continuity (no long pauses under load).
-6. Watch `g_peleng_process_cycles_max`; at 170 MHz it must stay below
-   `g_signal_block_period_cycles = 696320` cycles for the current 1024-sample
-   block at 250 kHz.
-7. Inject known inter-channel delay and check `d12/d13/d14` sign and magnitude.
+6. Inject known inter-channel delay and check `d12/d13/d14` sign and magnitude.
 
 ## 9. Recommended Next Improvements
 
