@@ -7,6 +7,7 @@ set(CMAKE_C_EXTENSIONS ON)
 
 set(CMAKE_PROJECT_NAME Peleng)
 option(PELENG_FETCH_DEPS "Download CMSIS-DSP and HAL/LL during configure" OFF)
+option(PELENG_ENABLE_CLANG_TIDY "Add the clang-tidy static analysis target" ON)
 set(BOARD "devboard" CACHE STRING "Target board platform")
 set_property(CACHE BOARD PROPERTY STRINGS devboard)
 
@@ -65,6 +66,48 @@ endif()
 
 add_executable(${CMAKE_PROJECT_NAME})
 add_subdirectory(src)
+
+if(PELENG_ENABLE_CLANG_TIDY)
+    find_program(CLANG_TIDY_EXECUTABLE NAMES clang-tidy-20)
+    if(CLANG_TIDY_EXECUTABLE)
+        find_path(CLANG_TIDY_NEWLIB_INCLUDE_DIR
+            NAMES errno.h
+            PATHS /usr/include/newlib
+        )
+        execute_process(
+            COMMAND ${CMAKE_CXX_COMPILER} -dumpfullversion
+            OUTPUT_VARIABLE CLANG_TIDY_GCC_VERSION
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        execute_process(
+            COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=include
+            OUTPUT_VARIABLE CLANG_TIDY_GCC_INCLUDE_DIR
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        set(CLANG_TIDY_GCC_INCLUDE_DIRS
+            "${CLANG_TIDY_NEWLIB_INCLUDE_DIR}/c++/${CLANG_TIDY_GCC_VERSION}"
+            "${CLANG_TIDY_NEWLIB_INCLUDE_DIR}/c++/${CLANG_TIDY_GCC_VERSION}/arm-none-eabi"
+            "${CLANG_TIDY_NEWLIB_INCLUDE_DIR}/c++/${CLANG_TIDY_GCC_VERSION}/backward"
+            "${CLANG_TIDY_GCC_INCLUDE_DIR}"
+            "${CLANG_TIDY_GCC_INCLUDE_DIR}/../include-fixed"
+            "${CLANG_TIDY_NEWLIB_INCLUDE_DIR}"
+        )
+
+        add_custom_target(clang-tidy
+            COMMAND ${CMAKE_COMMAND}
+                -DCLANG_TIDY_EXECUTABLE=${CLANG_TIDY_EXECUTABLE}
+                -DCOMPILE_COMMANDS=${CMAKE_BINARY_DIR}/compile_commands.json
+                -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/src
+                -DNEWLIB_INCLUDE_DIR=${CLANG_TIDY_NEWLIB_INCLUDE_DIR}
+                "-DGCC_INCLUDE_DIRS=${CLANG_TIDY_GCC_INCLUDE_DIRS}"
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/RunClangTidy.cmake
+            COMMENT "Running clang-tidy on sources under src/"
+            VERBATIM
+        )
+    else()
+        message(WARNING "clang-tidy-20 not found: 'clang-tidy' target is unavailable")
+    endif()
+endif()
 
 # CMSIS core headers are still provided locally.
 target_include_directories(CMSISDSP PRIVATE

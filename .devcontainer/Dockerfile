@@ -5,11 +5,13 @@ ARG UID=1000
 ARG GID=$UID
 
 RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add - \
-    && echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-19 main" \
+    && echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-20 main" \
     | sudo tee /etc/apt/sources.list.d/llvm.list \
     && apt update -q \
     && apt upgrade -q -y \
     && apt install -y --no-install-recommends \
+    clang-tidy-20 \
+    cppcheck \
     openocd \
     gdb-multiarch \
     python3-pip \

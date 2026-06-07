@@ -23,7 +23,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/Debug
-          key: ${{ runner.os }}-debug-build-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', '.devcontainer/Dockerfile', '.gitmodules', 'st_gen/toolchain/gcc-arm-none-eabi.cmake', 'src/**', 'tests/**', 'Drivers/**') }}
+          key: ${{ runner.os }}-debug-build-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'CMakePresets.json', '.clang-tidy', '.devcontainer/Dockerfile', '.gitmodules', 'src/**', 'Drivers/**') }}
           restore-keys: |
             ${{ runner.os }}-debug-build-
 
@@ -39,20 +39,6 @@ jobs:
           tags: peleng-devcontainer:ci
           cache-from: type=gha
 
-      - name: Generate host compile commands in devcontainer
-        run: |
-          docker run --rm \
-            --user "$(id -u):$(id -g)" \
-            -v "${{ github.workspace }}:${{ github.workspace }}" \
-            -w "${{ github.workspace }}" \
-            peleng-devcontainer:ci \
-            bash -lc 'cmake --fresh -S tests -B build/tests -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON'
-
-      - name: Install analysis tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends clang-tidy cppcheck
-
       - name: Prepare analysis report directory
         run: mkdir -p build/reports
 
@@ -60,30 +46,32 @@ jobs:
         run: |
           set -o pipefail
 
-          mapfile -t TIDY_FILES < <(
-            printf '%s\n' \
-              src/peleng/Filter.cpp \
-              src/peleng/DelayEstimator.cpp
-          )
-
-          if [ "${#TIDY_FILES[@]}" -eq 0 ]; then
-            echo "No files selected for clang-tidy"
-            exit 1
-          fi
-
-          clang-tidy -p build/tests "${TIDY_FILES[@]}" \
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -v "${{ github.workspace }}:${{ github.workspace }}" \
+            -w "${{ github.workspace }}" \
+            peleng-devcontainer:ci \
+            bash -lc '
+              cmake --preset Debug --fresh &&
+              cmake --build --preset Debug --target clang-tidy
+            ' \
             2>&1 | tee build/reports/clang-tidy.txt
 
       - name: Run cppcheck
         run: |
-          cppcheck \
-            --project=build/tests/compile_commands.json \
-            --enable=warning,performance,portability \
-            --file-filter=src/peleng/* \
-            --suppress=preprocessorErrorDirective \
-            --inline-suppr \
-            --error-exitcode=1 \
-            --output-file=build/reports/cppcheck.txt
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -v "${{ github.workspace }}:${{ github.workspace }}" \
+            -w "${{ github.workspace }}" \
+            peleng-devcontainer:ci \
+            cppcheck \
+              --project=build/Debug/compile_commands.json \
+              --enable=warning,performance,portability \
+              '--file-filter=src/*' \
+              --suppress=preprocessorErrorDirective \
+              --inline-suppr \
+              --error-exitcode=1 \
+              --output-file=build/reports/cppcheck.txt
 
       - name: Upload static analysis reports
         if: always()
