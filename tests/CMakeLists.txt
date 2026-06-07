@@ -52,6 +52,7 @@ FetchContent_MakeAvailable(Catch2)
 add_executable(peleng_host_tests
     filter_tests.cpp
     delay_estimator_tests.cpp
+    task_tests.cpp
     ../src/peleng/Filter.cpp
     ../src/peleng/DelayEstimator.cpp
 )

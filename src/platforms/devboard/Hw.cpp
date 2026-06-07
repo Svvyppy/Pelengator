@@ -3,52 +3,45 @@
 #include "HwInit.h"
 #include "cordic.h"
 
-namespace
+static hydrv::hw::HwInstances HwInstances{};
+
+static hydrv::hw::SignalRecorder recorder{};
+
+inline void HandleAdcDmaIrq(ADC_HandleTypeDef* hadc)
 {
-void InitCorePeripherals(HwInstances *hw)
+    HAL_DMA_IRQHandler(hadc->DMA_Handle);
+}
+extern "C" void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
-    GpioInit();
-    DMAInit();
-    Tim6Init(&hw->htim6);
-    Tim7Init(&hw->htim7);
-    Uart1Init(&hw->huart1);
+    recorder.fullReady();
 }
 
-void InitAnalogPeripherals(HwInstances *hw)
+extern "C" void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
 {
-    Dac4Init(&hw->hdac4);
-    Opamp4Init(&hw->hopamp4);
-    Adc1Init(&hw->hadc1);
-    Adc2Init(&hw->hadc2);
-    Adc4Init(&hw->hadc4);
-    Adc5Init(&hw->hadc5);
-}
-
-inline void HandleAdcDmaIrq(ADC_HandleTypeDef *hadc) { HAL_DMA_IRQHandler(hadc->DMA_Handle); }
-} // namespace
-
-// Singleton implementation
-HwInstances *GetHwInstances(void)
-{
-    static HwInstances instances = {};
-    return &instances;
+    recorder.halfReady();
 }
 
 bool InitHw(void)
 {
-    HwInstances *hw = GetHwInstances();
+    GpioInit();
+    DMAInit();
+    Tim6Init(recorder.tim6Handle());
+    Tim7Init(recorder.tim7Handle());
 
-    // Force vector table to application flash. This keeps IRQ/exception dispatch
-    // correct even when debug reset path leaves memory remap in System Memory mode.
-    SCB->VTOR = FLASH_BASE;
-    __DSB();
-    __ISB();
+    Dac4Init(recorder.dac4Handle());
+    Opamp4Init(recorder.opamp4Hanle());
+    Adc1Init(recorder.adc1Handle());
+    Adc2Init(recorder.adc2Handle());
+    Adc4Init(recorder.adc4Handle());
+    Adc5Init(recorder.adc5Handle());
+    HwInstances.recorder = &recorder;
+    recorder.startRecord();
+
+    Uart1Init(&hw->huart1);
 
     HAL_Init();
     SystemClock_Config();
 
-    InitCorePeripherals(hw);
-    InitAnalogPeripherals(hw);
     MX_CORDIC_Init();
 
     return true;
@@ -56,13 +49,7 @@ bool InitHw(void)
 
 extern "C" void DMA1_Channel1_IRQHandler(void)
 {
-    /* USER CODE BEGIN DMA1_Channel1_IRQn 0 */
-
-    /* USER CODE END DMA1_Channel1_IRQn 0 */
-    HandleAdcDmaIrq(&GetHwInstances()->hadc1);
-    /* USER CODE BEGIN DMA1_Channel1_IRQn 1 */
-
-    /* USER CODE END DMA1_Channel1_IRQn 1 */
+    HandleAdcDmaIrq(recorder.adc1Handle());
 }
 
 /**
@@ -70,13 +57,7 @@ extern "C" void DMA1_Channel1_IRQHandler(void)
  */
 extern "C" void DMA1_Channel3_IRQHandler(void)
 {
-    /* USER CODE BEGIN DMA1_Channel3_IRQn 0 */
-
-    /* USER CODE END DMA1_Channel3_IRQn 0 */
-    HandleAdcDmaIrq(&GetHwInstances()->hadc2);
-    /* USER CODE BEGIN DMA1_Channel3_IRQn 1 */
-
-    /* USER CODE END DMA1_Channel3_IRQn 1 */
+    HandleAdcDmaIrq(recorder.adc2Handle());
 }
 
 /**
@@ -84,13 +65,7 @@ extern "C" void DMA1_Channel3_IRQHandler(void)
  */
 extern "C" void DMA1_Channel4_IRQHandler(void)
 {
-    /* USER CODE BEGIN DMA1_Channel3_IRQn 0 */
-
-    /* USER CODE END DMA1_Channel3_IRQn 0 */
-    HandleAdcDmaIrq(&GetHwInstances()->hadc4);
-    /* USER CODE BEGIN DMA1_Channel3_IRQn 1 */
-
-    /* USER CODE END DMA1_Channel3_IRQn 1 */
+    HandleAdcDmaIrq(recorder.adc4Handle());
 }
 
 /**
@@ -98,13 +73,7 @@ extern "C" void DMA1_Channel4_IRQHandler(void)
  */
 extern "C" void DMA1_Channel2_IRQHandler(void)
 {
-    /* USER CODE BEGIN DMA1_Channel2_IRQn 0 */
-
-    /* USER CODE END DMA1_Channel2_IRQn 0 */
-    HandleAdcDmaIrq(&GetHwInstances()->hadc5);
-    /* USER CODE BEGIN DMA1_Channel2_IRQn 1 */
-
-    /* USER CODE END DMA1_Channel2_IRQn 1 */
+    HandleAdcDmaIrq(recorder.adc5Handle());
 }
 
 /**
@@ -112,13 +81,7 @@ extern "C" void DMA1_Channel2_IRQHandler(void)
  */
 extern "C" void TIM1_BRK_TIM15_IRQHandler(void)
 {
-    /* USER CODE BEGIN TIM1_BRK_TIM15_IRQn 0 */
-
-    /* USER CODE END TIM1_BRK_TIM15_IRQn 0 */
     HAL_TIM_IRQHandler(&GetHwInstances()->htim15);
-    /* USER CODE BEGIN TIM1_BRK_TIM15_IRQn 1 */
-
-    /* USER CODE END TIM1_BRK_TIM15_IRQn 1 */
 }
 
 /**
@@ -126,15 +89,7 @@ extern "C" void TIM1_BRK_TIM15_IRQHandler(void)
  * underrun error interrupts.
  */
 extern "C" void TIM6_DAC_IRQHandler(void)
-{
-    /* USER CODE BEGIN TIM6_DAC_IRQn 0 */
-
-    /* USER CODE END TIM6_DAC_IRQn 0 */
-
-    /* USER CODE BEGIN TIM6_DAC_IRQn 1 */
-
-    /* USER CODE END TIM6_DAC_IRQn 1 */
-}
+{}
 
 /**
  * @brief This function handles TIM7 global interrupt, DAC2 and DAC4 channel
@@ -145,11 +100,14 @@ extern "C" void TIM7_DAC_IRQHandler(void)
     /* USER CODE BEGIN TIM7_DAC_IRQn 0 */
 
     /* USER CODE END TIM7_DAC_IRQn 0 */
-    HAL_TIM_IRQHandler(&GetHwInstances()->htim7);
-    HAL_DAC_IRQHandler(&GetHwInstances()->hdac4);
+    HAL_TIM_IRQHandler(recorder.tim7Handle);
+    HAL_DAC_IRQHandler(recorder.dac4Handle);
     /* USER CODE BEGIN TIM7_DAC_IRQn 1 */
 
     /* USER CODE END TIM7_DAC_IRQn 1 */
 }
 
-extern "C" void USART1_IRQHandler(void) { HAL_UART_IRQHandler(&GetHwInstances()->huart1); }
+extern "C" void USART1_IRQHandler(void)
+{
+    HAL_UART_IRQHandler(&GetHwInstances()->huart1);
+}

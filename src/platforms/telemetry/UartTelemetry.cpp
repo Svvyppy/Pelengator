@@ -1,4 +1,4 @@
-#include "UartTelemetry.hpp"
+#include "UartTelemetry.h"
 
 #include <array>
 #include <cstdint>

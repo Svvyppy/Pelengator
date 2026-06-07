@@ -6,7 +6,7 @@
 
 #include "DelayEstimator.hpp"
 #include "Filter.hpp"
-#include "SignalAcquisition.hpp"
+#include "SignalAcquisition.h"
 
 /**
  * @brief Top-level real-time orchestrator for Peleng DSP pipeline.

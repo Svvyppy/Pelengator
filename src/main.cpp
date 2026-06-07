@@ -3,7 +3,7 @@
 #include "Hw.h"
 
 #include "Peleng.hpp"
-#include "UartTelemetry.hpp"
+#include "UartTelemetry.h"
 #include "cordic.h"
 
 Peleng g_peleng;

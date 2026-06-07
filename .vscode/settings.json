@@ -1,0 +1,88 @@
+{
+    "C_Cpp.intelliSenseEngine": "disabled",
+    "C_Cpp.errorSquiggles": "disabled",
+    "C_Cpp.formatting": "disabled",
+    "clangd.path": "/usr/local/bin/clangd",
+    "clangd.arguments": [
+        "--compile-commands-dir=${workspaceFolder}/build",
+        "--query-driver=/usr/bin/arm-none-eabi-*",
+        "--clang-tidy"
+    ],
+    "clangd.detectExtensionConflicts": false,
+    "clang-format.executable": "/usr/bin/clang-format",
+    "[cpp]": {
+        
+        
+        
+        "editor.semanticHighlighting.enabled": true,
+        "editor.wordBasedSuggestions": "allDocuments",
+        "editor.suggest.insertMode": "replace",
+        "editor.formatOnSave": false,
+    },
+    "[c]": {
+    },
+    "workbench.editorAssociations": {
+        "*.gpg": "default"
+    },
+    "mesonbuild.downloadLanguageServer": true,
+    "editor.unicodeHighlight.allowedCharacters": {
+        "е": true
+    },
+    "editor.unicodeHighlight.allowedLocales": {
+        "ru": true
+    },
+    "diffEditor.ignoreTrimWhitespace": false,
+    "files.associations": {
+        "*.hpp": "cpp",
+        "*.cpp": "cpp",
+        "CODEOWNERS": "snippets",
+        "*.h": "cpp",
+        "*.json": "json"
+    },
+    "workbench.secondarySideBar.defaultVisibility": "hidden",
+    "continue.enableTabAutocomplete": false,
+    "[python]": {
+        "diffEditor.ignoreTrimWhitespace": false,
+        "editor.defaultColorDecorators": "never"
+    },
+    "workbench.colorCustomizations": {},
+    "workbench.colorTheme": "Visual Studio 2017 Dark - C++",
+    "editor.trimAutoWhitespace": false,
+    "files.trimTrailingWhitespaceInRegexAndStrings": false,
+    "diffEditor.hideUnchangedRegions.enabled": true,
+    "git.openRepositoryInParentFolders": "never",
+    "continue.showInlineTip": false,
+    "debug.onTaskErrors": "debugAnyway",
+    "cmake.showConfigureWithDebuggerNotification": false,
+    "cortex-debug.armToolchainPath.linux": "/bin",
+    "cortex-debug.gdbPath": "gdb-multiarch",
+    "terminal.integrated.enableMultiLinePasteWarning": "never",
+    "[plaintext]": {
+        "editor.unicodeHighlight.ambiguousCharacters": false,
+        "editor.unicodeHighlight.invisibleCharacters": false
+    },
+    "[json]": {
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true,
+        "editor.detectIndentation": true,
+        "embeddedLanguageFormatting": "off"
+    },
+    "terminal.integrated.initialHint": false,
+    "github.copilot.enable": {
+        "*": false,
+        "plaintext": false,
+        "markdown": false,
+        "scminput": false,
+        "cpp": false
+    },
+    "hexeditor.columnWidth": 32,
+    "hexeditor.showDecodedText": true,
+    "hexeditor.defaultEndianness": "little",
+    "hexeditor.inspectorType": "aside",
+    "yaml.schemas": {
+        "file:///home/corp.1440.space_n.bulatov/.vscode/extensions/continue.continue-1.2.22-linux-x64/config-yaml-schema.json": [
+            ".continue/**/*.yaml"
+        ]
+    },
+    "redhat.telemetry.enabled": true
+}
