@@ -44,7 +44,8 @@
             ],
             "settings": {
                 "clangd.arguments": [
-                    "--compile-commands-dir=build"
+                    "--compile-commands-dir=build/Debug",
+                    "--query-driver=/usr/bin/arm-none-eabi-*"
                 ],
                 "C_Cpp.intelliSenseEngine": "disabled",
                 "cortex-debug.armToolchainPath": "/bin", // Path to arm-none-eabi toolchain

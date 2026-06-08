@@ -2,188 +2,171 @@
 
 #include <cmath>
 
-namespace {
-constexpr float kMicrosecondsPerSecond = 1000000.0f;
-constexpr float kDegreesPerRadian = 57.29577951308232f;
-constexpr float kNormTolerance = 1e-6f;
-constexpr float kDelayMicrosecondsToSignedMeters = -SOUND_SPEED_MPS / kMicrosecondsPerSecond;
+namespace hydrv::peleng {
 
 using Matrix3x3 = std::array<std::array<float, 3U>, 3U>;
 
-constexpr float Abs(float value)
+static constexpr float absolute(float value)
 {
     return (value < 0.0f) ? -value : value;
 }
 
-constexpr Matrix3x3 MakeBaselineMatrix()
+static constexpr Matrix3x3 makeBaselineMatrix()
 {
     Matrix3x3 matrix{};
-    for (std::size_t row = 0U; row < 3U; ++row)
-    {
-        for (std::size_t axis = 0U; axis < 3U; ++axis)
-        {
-            matrix[row][axis] = HYDROPHONE_POSITIONS_M[row + 1U][axis] - HYDROPHONE_POSITIONS_M[0][axis];
+    for (std::size_t row = 0U; row < 3U; ++row) {
+        for (std::size_t axis = 0U; axis < 3U; ++axis) {
+            matrix[row][axis] = kHydrophonePositionsMeters[row + 1U][axis] - kHydrophonePositionsMeters[0][axis];
         }
     }
-
     return matrix;
 }
 
-constexpr float Determinant3x3(const Matrix3x3& matrix)
+static constexpr float determinant(const Matrix3x3& matrix)
 {
     return matrix[0][0] * (matrix[1][1] * matrix[2][2] - matrix[1][2] * matrix[2][1]) -
            matrix[0][1] * (matrix[1][0] * matrix[2][2] - matrix[1][2] * matrix[2][0]) +
            matrix[0][2] * (matrix[1][0] * matrix[2][1] - matrix[1][1] * matrix[2][0]);
 }
 
-constexpr Matrix3x3 Inverse3x3(const Matrix3x3& matrix)
+static constexpr Matrix3x3 invert(const Matrix3x3& matrix)
 {
-    const float determinant = Determinant3x3(matrix);
-    return Matrix3x3{{
-        {{(matrix[1][1] * matrix[2][2] - matrix[1][2] * matrix[2][1]) / determinant,
-          (matrix[0][2] * matrix[2][1] - matrix[0][1] * matrix[2][2]) / determinant,
-          (matrix[0][1] * matrix[1][2] - matrix[0][2] * matrix[1][1]) / determinant}},
-        {{(matrix[1][2] * matrix[2][0] - matrix[1][0] * matrix[2][2]) / determinant,
-          (matrix[0][0] * matrix[2][2] - matrix[0][2] * matrix[2][0]) / determinant,
-          (matrix[0][2] * matrix[1][0] - matrix[0][0] * matrix[1][2]) / determinant}},
-        {{(matrix[1][0] * matrix[2][1] - matrix[1][1] * matrix[2][0]) / determinant,
-          (matrix[0][1] * matrix[2][0] - matrix[0][0] * matrix[2][1]) / determinant,
-          (matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0]) / determinant}},
-    }};
+    const float matrixDeterminant = determinant(matrix);
+    return Matrix3x3{
+        {
+         { { (matrix[1][1] * matrix[2][2] - matrix[1][2] * matrix[2][1]) / matrixDeterminant,
+                (matrix[0][2] * matrix[2][1] - matrix[0][1] * matrix[2][2]) / matrixDeterminant,
+                (matrix[0][1] * matrix[1][2] - matrix[0][2] * matrix[1][1]) / matrixDeterminant } },
+         { { (matrix[1][2] * matrix[2][0] - matrix[1][0] * matrix[2][2]) / matrixDeterminant,
+                (matrix[0][0] * matrix[2][2] - matrix[0][2] * matrix[2][0]) / matrixDeterminant,
+                (matrix[0][2] * matrix[1][0] - matrix[0][0] * matrix[1][2]) / matrixDeterminant } },
+         { { (matrix[1][0] * matrix[2][1] - matrix[1][1] * matrix[2][0]) / matrixDeterminant,
+                (matrix[0][1] * matrix[2][0] - matrix[0][0] * matrix[2][1]) / matrixDeterminant,
+                (matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0]) / matrixDeterminant } },
+         }
+    };
 }
 
-constexpr Matrix3x3 kBaselineMatrix = MakeBaselineMatrix();
-static_assert(Abs(Determinant3x3(kBaselineMatrix)) > 1e-9f);
-constexpr Matrix3x3 kInverseBaselineMatrix = Inverse3x3(kBaselineMatrix);
+inline constexpr float kMicrosecondsPerSecond      = 1000000.0f;
+inline constexpr float kDegreesPerRadian           = 57.29577951308232f;
+inline constexpr float kDirectionTolerance         = 1e-6f;
+inline constexpr float kMicrosecondsToSignedMeters = -kSoundSpeedMetersPerSecond / kMicrosecondsPerSecond;
+inline constexpr Matrix3x3 kBaselineMatrix         = makeBaselineMatrix();
+inline constexpr Matrix3x3 kInverseBaselineMatrix  = invert(kBaselineMatrix);
 
-int32_t MaxDelaySamplesBetween(std::size_t first_channel, std::size_t second_channel)
+static_assert(absolute(determinant(kBaselineMatrix)) > 1e-9f);
+
+static int32_t maximumDelaySamples(std::size_t firstChannel, std::size_t secondChannel)
 {
-    float distance_squared = 0.0f;
+    float distanceSquared = 0.0f;
     for (std::size_t axis = 0U; axis < 3U; ++axis) {
-        const float delta = HYDROPHONE_POSITIONS_M[first_channel][axis] -
-                            HYDROPHONE_POSITIONS_M[second_channel][axis];
-        distance_squared += delta * delta;
+        const float delta =
+            kHydrophonePositionsMeters[firstChannel][axis] - kHydrophonePositionsMeters[secondChannel][axis];
+        distanceSquared += delta * delta;
     }
 
-    const float distance_m = std::sqrt(distance_squared);
-    const float samples = (distance_m * SAMPLE_RATE_HZ) / SOUND_SPEED_MPS;
-    return static_cast<int32_t>(std::ceil(samples)) + SIGNAL_DELAY_MARGIN_SAMPLES;
+    const float distanceMeters = std::sqrt(distanceSquared);
+    return static_cast<int32_t>(std::ceil(distanceMeters * kSampleRateHz / kSoundSpeedMetersPerSecond)) +
+           kSignalDelayMarginSamples;
 }
 
-bool AreArrivalTimesPhysicallyPlausible(const std::array<ThresholdCrossing, ADC_CHANNELS>& arrivals)
+static bool arrivalTimesArePlausible(const std::array<ThresholdCrossing, kAdcChannelCount>& arrivals)
 {
-    for (std::size_t first_channel = 0U; first_channel < ADC_CHANNELS; ++first_channel) {
-        for (std::size_t second_channel = first_channel + 1U; second_channel < ADC_CHANNELS; ++second_channel) {
-            const auto first_index = static_cast<int32_t>(arrivals[first_channel].index);
-            const auto second_index = static_cast<int32_t>(arrivals[second_channel].index);
-            const int32_t delay_samples = second_index - first_index;
-            if (Abs(static_cast<float>(delay_samples)) >
-                static_cast<float>(MaxDelaySamplesBetween(first_channel, second_channel))) {
+    for (std::size_t firstChannel = 0U; firstChannel < kAdcChannelCount; ++firstChannel) {
+        for (std::size_t secondChannel = firstChannel + 1U; secondChannel < kAdcChannelCount; ++secondChannel) {
+            const int32_t delay = static_cast<int32_t>(arrivals[secondChannel].sampleIndex) -
+                                  static_cast<int32_t>(arrivals[firstChannel].sampleIndex);
+            if (absolute(static_cast<float>(delay)) >
+                static_cast<float>(maximumDelaySamples(firstChannel, secondChannel)))
+            {
                 return false;
             }
         }
     }
-
     return true;
 }
+
+ThresholdCrossing findThresholdCrossing(const SignalBlock& signal)
+{
+    for (std::size_t sampleIndex = 0U; sampleIndex < signal.size(); ++sampleIndex) {
+        const q15_t value = signal[sampleIndex];
+        if (value >= kSignalThreshold && value <= kMaximumSignalThreshold) {
+            return { .sampleIndex = sampleIndex, .value = value, .found = true };
+        }
+    }
+    return {};
 }
 
-namespace peleng {
-ThresholdCrossing FindThresholdCrossing(const HalfBuffer& buffer)
+DelayMeasurements estimateDelays(const ChannelSignalBlocks& signals)
 {
-    for (std::size_t index = 0U; index < SIGNAL_BLOCK_SIZE; ++index) {
-        const q15_t value = buffer[index];
-        if ((value >= SIGNAL_THRESHOLD_Q15) && (value <= SIGNAL_THRESHOLD_MAX_Q15)) {
-            return ThresholdCrossing{ .index = index, .value = value, .found = true };
+    std::array<ThresholdCrossing, kAdcChannelCount> arrivals{};
+    for (std::size_t channel = 0U; channel < arrivals.size(); ++channel) {
+        arrivals[channel] = findThresholdCrossing(signals[channel]);
+        if (!arrivals[channel].found) {
+            return {};
         }
     }
 
-    return ThresholdCrossing{};
+    if (!arrivalTimesArePlausible(arrivals)) {
+        return {};
+    }
+
+    DelayMeasurements measurements{};
+    measurements.valid                = true;
+    const int32_t referenceSample     = static_cast<int32_t>(arrivals[0].sampleIndex);
+    measurements.channel2Samples      = static_cast<int32_t>(arrivals[1].sampleIndex) - referenceSample;
+    measurements.channel3Samples      = static_cast<int32_t>(arrivals[2].sampleIndex) - referenceSample;
+    measurements.channel4Samples      = static_cast<int32_t>(arrivals[3].sampleIndex) - referenceSample;
+    measurements.channel2Microseconds = samplesToMicroseconds(measurements.channel2Samples);
+    measurements.channel3Microseconds = samplesToMicroseconds(measurements.channel3Samples);
+    measurements.channel4Microseconds = samplesToMicroseconds(measurements.channel4Samples);
+    estimateDirection(measurements);
+    return measurements;
 }
 
-DelayMeasurements EstimateDelayMeasurements(const EnvelopeBuffers& buffers)
+float samplesToMicroseconds(int32_t samples)
 {
-    std::array<ThresholdCrossing, ADC_CHANNELS> arrivals{};
-    for (std::size_t channel = 0U; channel < ADC_CHANNELS; ++channel) {
-        arrivals[channel] = FindThresholdCrossing(buffers[channel]);
-    }
-
-    DelayMeasurements current{};
-    current.valid = true;
-    for (const auto& arrival : arrivals) {
-        if (!arrival.found) {
-            current.valid = false;
-            break;
-        }
-    }
-
-    if (!current.valid) {
-        return current;
-    }
-
-    if (!AreArrivalTimesPhysicallyPlausible(arrivals)) {
-        current.valid = false;
-        return current;
-    }
-
-    const auto ref_index = static_cast<int32_t>(arrivals[0].index);
-    current.d12_samples  = static_cast<int32_t>(arrivals[1].index) - ref_index;
-    current.d13_samples  = static_cast<int32_t>(arrivals[2].index) - ref_index;
-    current.d14_samples  = static_cast<int32_t>(arrivals[3].index) - ref_index;
-    current.d12_us       = SamplesToMicroseconds(current.d12_samples);
-    current.d13_us       = SamplesToMicroseconds(current.d13_samples);
-    current.d14_us       = SamplesToMicroseconds(current.d14_samples);
-    EstimateDirectionLeastSquares(current);
-    return current;
+    return static_cast<float>(samples) * kMicrosecondsPerSecond / kSampleRateHz;
 }
 
-float SamplesToMicroseconds(int32_t samples)
+void estimateDirection(DelayMeasurements& measurements)
 {
-    const auto samples_f = static_cast<float>(samples);
-    return (samples_f * kMicrosecondsPerSecond) / SAMPLE_RATE_HZ;
-}
-
-void EstimateDirectionLeastSquares(DelayMeasurements& measurements)
-{
-    measurements.angles_valid = false;
-    if (!measurements.valid)
-    {
+    measurements.directionValid = false;
+    if (!measurements.valid) {
         return;
     }
 
-    const float signed_ranges_m[ADC_CHANNELS - 1U] = {
-        measurements.d12_us * kDelayMicrosecondsToSignedMeters,
-        measurements.d13_us * kDelayMicrosecondsToSignedMeters,
-        measurements.d14_us * kDelayMicrosecondsToSignedMeters,
+    const std::array<float, 3U> signedRanges = {
+        measurements.channel2Microseconds * kMicrosecondsToSignedMeters,
+        measurements.channel3Microseconds * kMicrosecondsToSignedMeters,
+        measurements.channel4Microseconds * kMicrosecondsToSignedMeters,
     };
 
-    float direction[3] = {};
-    for (std::size_t axis = 0U; axis < 3U; ++axis)
-    {
-        direction[axis] = (kInverseBaselineMatrix[axis][0] * signed_ranges_m[0]) +
-                          (kInverseBaselineMatrix[axis][1] * signed_ranges_m[1]) +
-                          (kInverseBaselineMatrix[axis][2] * signed_ranges_m[2]);
+    std::array<float, 3U> direction{};
+    for (std::size_t axis = 0U; axis < direction.size(); ++axis) {
+        direction[axis] = kInverseBaselineMatrix[axis][0] * signedRanges[0] +
+                          kInverseBaselineMatrix[axis][1] * signedRanges[1] +
+                          kInverseBaselineMatrix[axis][2] * signedRanges[2];
     }
 
     const float norm =
         std::sqrt(direction[0] * direction[0] + direction[1] * direction[1] + direction[2] * direction[2]);
-    if (norm < kNormTolerance)
-    {
+    if (norm < kDirectionTolerance) {
         return;
     }
 
-    measurements.direction_x = direction[0] / norm;
-    measurements.direction_y = direction[1] / norm;
-    measurements.direction_z = direction[2] / norm;
+    measurements.directionX = direction[0] / norm;
+    measurements.directionY = direction[1] / norm;
+    measurements.directionZ = direction[2] / norm;
 
-    const float horizontal_norm =
-        std::sqrt(measurements.direction_x * measurements.direction_x +
-                  measurements.direction_y * measurements.direction_y);
-    measurements.peleng_deg = (horizontal_norm < kNormTolerance)
-                                  ? 0.0f
-                                  : std::atan2(measurements.direction_y, measurements.direction_x) *
-                                        kDegreesPerRadian;
-    measurements.elevation_deg = std::atan2(measurements.direction_z, horizontal_norm) * kDegreesPerRadian;
-    measurements.angles_valid = true;
+    const float horizontalNorm = std::sqrt(measurements.directionX * measurements.directionX +
+                                           measurements.directionY * measurements.directionY);
+    measurements.bearingDegrees =
+        (horizontalNorm < kDirectionTolerance)
+            ? 0.0f
+            : std::atan2(measurements.directionY, measurements.directionX) * kDegreesPerRadian;
+    measurements.elevationDegrees = std::atan2(measurements.directionZ, horizontalNorm) * kDegreesPerRadian;
+    measurements.directionValid   = true;
 }
-} // namespace peleng
+
+} // namespace hydrv::peleng

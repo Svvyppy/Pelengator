@@ -4,82 +4,45 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "CommonSettings.h"
-
 extern "C"
 {
 #include <arm_math.h>
 }
 
-/**
- * @brief Relative delays between channel 1 and channels 2..4.
- */
+#include "CommonSettings.h"
+
+namespace hydrv::peleng {
+
 struct DelayMeasurements
 {
-    /** @brief Delay 2-1 in samples. */
-    int32_t d12_samples = 0;
-    /** @brief Delay 3-1 in samples. */
-    int32_t d13_samples = 0;
-    /** @brief Delay 4-1 in samples. */
-    int32_t d14_samples = 0;
-
-    /** @brief Delay 2-1 in microseconds. */
-    float d12_us = 0.0f;
-    /** @brief Delay 3-1 in microseconds. */
-    float d13_us = 0.0f;
-    /** @brief Delay 4-1 in microseconds. */
-    float d14_us = 0.0f;
-
-    /** @brief Direction x component from array toward source. */
-    float direction_x = 0.0f;
-    /** @brief Direction y component from array toward source. */
-    float direction_y = 0.0f;
-    /** @brief Direction z component from array toward source. */
-    float direction_z = 0.0f;
-    /** @brief Bearing angle in the XY plane in degrees, atan2(y, x); 90 degrees points toward Y+. */
-    float peleng_deg = 0.0f;
-    /** @brief Elevation angle in degrees from the XY plane; 90 degrees points toward Z+. */
-    float elevation_deg = 0.0f;
-
-    /** @brief True when all required threshold crossings were found. */
-    bool valid = false;
-    /** @brief True when direction and angles were computed from a solvable geometry. */
-    bool angles_valid = false;
+    int32_t channel2Samples    = 0;
+    int32_t channel3Samples    = 0;
+    int32_t channel4Samples    = 0;
+    float channel2Microseconds = 0.0f;
+    float channel3Microseconds = 0.0f;
+    float channel4Microseconds = 0.0f;
+    float directionX           = 0.0f;
+    float directionY           = 0.0f;
+    float directionZ           = 0.0f;
+    float bearingDegrees       = 0.0f;
+    float elevationDegrees     = 0.0f;
+    bool valid                 = false;
+    bool directionValid        = false;
 };
 
-/**
- * @brief First threshold crossing info for one envelope buffer.
- */
 struct ThresholdCrossing
 {
-    /** @brief Sample index where threshold crossing was detected. */
-    std::size_t index = 0U;
-    /** @brief Envelope value at crossing index. */
-    q15_t value = 0;
-    /** @brief Indicates whether a crossing was found. */
-    bool found = false;
+    std::size_t sampleIndex = 0U;
+    q15_t value             = 0;
+    bool found              = false;
 };
 
-namespace peleng {
-/** @brief Half-frame envelope buffer type for one channel. */
-using HalfBuffer = std::array<q15_t, SIGNAL_BLOCK_SIZE>;
-/** @brief Envelope buffers for all channels in one processing step. */
-using EnvelopeBuffers = std::array<HalfBuffer, ADC_CHANNELS>;
+using SignalBlock         = std::array<q15_t, kSignalBlockSize>;
+using ChannelSignalBlocks = std::array<SignalBlock, kAdcChannelCount>;
 
-/**
- * @brief Find first threshold crossing in one channel envelope.
- */
-ThresholdCrossing FindThresholdCrossing(const HalfBuffer& buffer);
-/**
- * @brief Compute inter-channel delays from current envelope buffers.
- */
-DelayMeasurements EstimateDelayMeasurements(const EnvelopeBuffers& buffers);
-/**
- * @brief Convert delay in samples to microseconds using configured sample rate.
- */
-float SamplesToMicroseconds(int32_t samples);
-/**
- * @brief Estimate source direction and angles from relative delays using least squares.
- */
-void EstimateDirectionLeastSquares(DelayMeasurements& measurements);
-} // namespace peleng
+ThresholdCrossing findThresholdCrossing(const SignalBlock& signal);
+DelayMeasurements estimateDelays(const ChannelSignalBlocks& signals);
+float samplesToMicroseconds(int32_t samples);
+void estimateDirection(DelayMeasurements& measurements);
+
+} // namespace hydrv::peleng

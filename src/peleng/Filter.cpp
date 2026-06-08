@@ -1,35 +1,28 @@
 #include "Filter.hpp"
 
+#include "FilterCoefficients.hpp"
+
+namespace hydrv::peleng {
+
 Filter::Filter()
 {
-    static_assert((Q15_NUM_TAPS % 2U) == 0U);
-    static_assert(Q15_NUM_TAPS >= 4U);
-    static_assert((SIGNAL_BLOCK_SIZE % BLOCK_SIZE) == 0U);
-    (void)arm_fir_init_q15(&fir_instance_, Q15_NUM_TAPS, kEnvelopeFirCoefficientsQ15.data(), state_.data(),
-                           BLOCK_SIZE);
+    static_assert((kEnvelopeFilterTapCount % 2U) == 0U);
+    static_assert((kSignalBlockSize % kFilterBlockSize) == 0U);
+    (void)arm_fir_init_q15(
+        &_filter, kEnvelopeFilterTapCount, kEnvelopeFilterCoefficients.data(), _state.data(), kFilterBlockSize);
 }
 
-void Filter::ApplyEnvelope(const q15_t *input, q15_t *output, std::size_t sample_count)
+void Filter::apply(const q15_t* input, q15_t* output, std::size_t sampleCount)
 {
-    if ((input == nullptr) || (output == nullptr) || (sample_count > SIGNAL_BLOCK_SIZE) ||
-        ((sample_count % BLOCK_SIZE) != 0U)) {
+    if (input == nullptr || output == nullptr || sampleCount > kSignalBlockSize ||
+        (sampleCount % kFilterBlockSize) != 0U)
+    {
         return;
     }
 
-    arm_mult_q15(input, input, square_buffer_.data(), sample_count);
-    ApplyFir(square_buffer_.data(), output, sample_count);
-}
-
-void Filter::ApplyFir(const q15_t *input, q15_t *output, std::size_t sample_count)
-{
-    if ((input == nullptr) || (output == nullptr) || (sample_count > SIGNAL_BLOCK_SIZE) ||
-        ((sample_count % BLOCK_SIZE) != 0U)) {
-        return;
-    }
-
-    const std::size_t block_count = sample_count / BLOCK_SIZE;
-    for (std::size_t block = 0; block < block_count; ++block) {
-        const std::size_t offset = block * BLOCK_SIZE;
-        arm_fir_q15(&fir_instance_, input + offset, output + offset, BLOCK_SIZE);
+    for (std::size_t offset = 0U; offset < sampleCount; offset += kFilterBlockSize) {
+        arm_fir_q15(&_filter, input + offset, output + offset, kFilterBlockSize);
     }
 }
+
+} // namespace hydrv::peleng

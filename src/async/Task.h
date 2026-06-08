@@ -6,7 +6,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace async {
+namespace hydrv::async {
 
 namespace detail {
 
@@ -46,9 +46,11 @@ template<typename T = void>
 class Task
 {
 public:
+    Task() noexcept = default;
+
     struct promise_type : detail::TaskResult<T>
     {
-        std::coroutine_handle<> _continuation = nullptr;
+        std::coroutine_handle<> continuation_ = nullptr;
 
         Task get_return_object()
         {
@@ -79,7 +81,7 @@ public:
                 void await_resume() const noexcept
                 {}
             };
-            return Awaiter{ _continuation };
+            return Awaiter{ continuation_ };
         }
 
         [[noreturn]] void unhandled_exception() noexcept
@@ -130,7 +132,7 @@ public:
     {
         assert(_handle);
         auto& promise         = _handle.promise();
-        promise._continuation = awaiting;
+        promise.continuation_ = awaiting;
         return _handle;
     }
 
@@ -145,16 +147,11 @@ public:
         }
     }
 
-    bool Done() const
+    bool done() const
     {
         return !_handle || _handle.done();
     }
 
-    void Resume()
-    {
-        start();
-    }
-    
     std::coroutine_handle<> handle() const noexcept
     {
         return _handle;
@@ -168,4 +165,4 @@ private:
     std::coroutine_handle<promise_type> _handle = nullptr;
 };
 
-} // namespace async
+} // namespace hydrv::async

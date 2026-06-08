@@ -1,30 +1,49 @@
 #pragma once
 
-#include "DelayEstimator.hpp"
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <string_view>
 
-class Peleng;
+#include "stm32g4xx_hal.h"
 
-/**
- * @brief Queue one delay telemetry frame for non-blocking UART transmit.
- * @return true when frame was queued, false when queue is full.
- */
-bool SendDelayTelemetryUart(const DelayMeasurements &delays);
+namespace hydrv::hw {
 
-/**
- * @brief Queue one textual event line for non-blocking UART transmit.
- * @return true when event was queued, false when queue is full.
- */
-bool SendEventTelemetryUart(const char *message);
-/**
- * @brief Progress UART TX state machine (call from main loop).
- */
-void UartTelemetryProcess(void);
-void SetPelengDebugSource(Peleng *peleng);
-
-class EventLogger
+class UartTelemetry
 {
 public:
-    EventLogger &operator<<(const char *message);
+    bool write(std::string_view text) noexcept;
+    void process() noexcept;
+
+    UART_HandleTypeDef* uartHandle() noexcept
+    {
+        return &_uart;
+    }
+
+private:
+    static constexpr std::size_t kQueueCapacity   = 8U;
+    static constexpr std::size_t kMessageCapacity = 128U;
+
+    struct Message
+    {
+        std::array<char, kMessageCapacity> text{};
+        uint16_t length = 0U;
+    };
+
+    static uint32_t enterCriticalSection() noexcept;
+    static void exitCriticalSection(uint32_t interruptState) noexcept;
+    static void enableTransmitter() noexcept;
+    static void disableTransmitter() noexcept;
+
+    bool transmissionComplete() const noexcept;
+    void removeTransmittedMessage() noexcept;
+    void startNextTransmission() noexcept;
+
+    std::array<Message, kQueueCapacity> _queuedMessages{};
+    std::size_t _firstMessageIndex  = 0U;
+    std::size_t _queuedMessageCount = 0U;
+    bool _transmissionActive        = false;
+    UART_HandleTypeDef _uart{};
 };
 
-extern EventLogger event;
+} // namespace hydrv::hw

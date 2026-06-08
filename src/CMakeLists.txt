@@ -24,6 +24,7 @@ endif()
 
 set(MX_Include_Dirs
     ${CMAKE_CURRENT_SOURCE_DIR}/peleng
+    ${CMAKE_CURRENT_SOURCE_DIR}/async
     ${CMAKE_CURRENT_SOURCE_DIR}/platforms
     ${CMAKE_CURRENT_SOURCE_DIR}/platforms/signalRecorder
     ${CMAKE_CURRENT_SOURCE_DIR}/platforms/telemetry
@@ -42,7 +43,7 @@ set(MX_Application_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/peleng/DelayEstimator.cpp
     ${BOARD_DIR}/Hw.cpp
     ${BOARD_DIR}/HwInit.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/platforms/signalRecorder/SignalAcquisition.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/platforms/signalRecorder/SignalRecorder.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/platforms/telemetry/UartTelemetry.cpp
     ${BOARD_GEN_DIR}/cordic.c
     ${BOARD_GEN_DIR}/stm32g4xx_it.c

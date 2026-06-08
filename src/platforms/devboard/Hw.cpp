@@ -3,111 +3,116 @@
 #include "HwInit.h"
 #include "cordic.h"
 
-static hydrv::hw::HwInstances HwInstances{};
+namespace hydrv::hw {
 
-static hydrv::hw::SignalRecorder recorder{};
+static SignalRecorder* activeRecorder = nullptr;
+static UartTelemetry* activeTelemetry = nullptr;
+static TIM_HandleTypeDef halTickTimer{};
 
-inline void HandleAdcDmaIrq(ADC_HandleTypeDef* hadc)
+uint32_t enterCriticalSection() noexcept
 {
-    HAL_DMA_IRQHandler(hadc->DMA_Handle);
-}
-extern "C" void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
-{
-    recorder.fullReady();
-}
-
-extern "C" void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
-{
-    recorder.halfReady();
+    const uint32_t interruptState = __get_PRIMASK();
+    __disable_irq();
+    return interruptState;
 }
 
-bool InitHw(void)
+void exitCriticalSection(uint32_t interruptState) noexcept
 {
-    GpioInit();
-    DMAInit();
-    Tim6Init(recorder.tim6Handle());
-    Tim7Init(recorder.tim7Handle());
+    __set_PRIMASK(interruptState);
+}
 
-    Dac4Init(recorder.dac4Handle());
-    Opamp4Init(recorder.opamp4Hanle());
-    Adc1Init(recorder.adc1Handle());
-    Adc2Init(recorder.adc2Handle());
-    Adc4Init(recorder.adc4Handle());
-    Adc5Init(recorder.adc5Handle());
-    HwInstances.recorder = &recorder;
-    recorder.startRecord();
-
-    Uart1Init(&hw->huart1);
+void initialize(SignalRecorder& recorder, UartTelemetry& telemetry) noexcept
+{
+    SCB->VTOR = FLASH_BASE;
+    __DSB();
+    __ISB();
 
     HAL_Init();
-    SystemClock_Config();
+    configureSystemClock();
 
+    initializeGpio();
+    initializeDma();
+    initializeSamplingTimer(recorder.samplingTimerHandle());
+    initializeServiceTimer(recorder.serviceTimerHandle());
+    initializeUart1(telemetry.uartHandle());
+    initializeDac4(recorder.dac4Handle());
+    initializeOpamp4(recorder.opamp4Handle());
+    initializeAdc1(recorder.adc1Handle());
+    initializeAdc2(recorder.adc2Handle());
+    initializeAdc4(recorder.adc4Handle());
+    initializeAdc5(recorder.adc5Handle());
     MX_CORDIC_Init();
 
-    return true;
+    activeRecorder  = &recorder;
+    activeTelemetry = &telemetry;
+}
+
+[[noreturn]] void stop() noexcept
+{
+    __disable_irq();
+    while (true) {
+    }
+}
+
+extern "C" TIM_HandleTypeDef* GetHalTickTimer(void)
+{
+    return &halTickTimer;
+}
+
+extern "C" void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* completedAdc)
+{
+    activeRecorder->onTransferComplete(completedAdc);
+}
+
+extern "C" void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* completedAdc)
+{
+    activeRecorder->onHalfTransferComplete(completedAdc);
 }
 
 extern "C" void DMA1_Channel1_IRQHandler(void)
 {
-    HandleAdcDmaIrq(recorder.adc1Handle());
+    HAL_DMA_IRQHandler(activeRecorder->adc1Handle()->DMA_Handle);
 }
 
-/**
- * @brief This function handles DMA1 channel3 global interrupt.
- */
-extern "C" void DMA1_Channel3_IRQHandler(void)
-{
-    HandleAdcDmaIrq(recorder.adc2Handle());
-}
-
-/**
- * @brief This function handles DMA1 channel3 global interrupt.
- */
-extern "C" void DMA1_Channel4_IRQHandler(void)
-{
-    HandleAdcDmaIrq(recorder.adc4Handle());
-}
-
-/**
- * @brief This function handles DMA1 channel2 global interrupt.
- */
 extern "C" void DMA1_Channel2_IRQHandler(void)
 {
-    HandleAdcDmaIrq(recorder.adc5Handle());
+    HAL_DMA_IRQHandler(activeRecorder->adc5Handle()->DMA_Handle);
 }
 
-/**
- * @brief This function handles TIM1 break interrupt and TIM15 global interrupt.
- */
+extern "C" void DMA1_Channel3_IRQHandler(void)
+{
+    HAL_DMA_IRQHandler(activeRecorder->adc2Handle()->DMA_Handle);
+}
+
+extern "C" void DMA1_Channel4_IRQHandler(void)
+{
+    HAL_DMA_IRQHandler(activeRecorder->adc4Handle()->DMA_Handle);
+}
+
 extern "C" void TIM1_BRK_TIM15_IRQHandler(void)
 {
-    HAL_TIM_IRQHandler(&GetHwInstances()->htim15);
+    HAL_TIM_IRQHandler(&halTickTimer);
 }
 
-/**
- * @brief This function handles TIM6 global interrupt, DAC1 and DAC3 channel
- * underrun error interrupts.
- */
 extern "C" void TIM6_DAC_IRQHandler(void)
 {}
 
-/**
- * @brief This function handles TIM7 global interrupt, DAC2 and DAC4 channel
- * underrun error interrupts.
- */
 extern "C" void TIM7_DAC_IRQHandler(void)
 {
-    /* USER CODE BEGIN TIM7_DAC_IRQn 0 */
-
-    /* USER CODE END TIM7_DAC_IRQn 0 */
-    HAL_TIM_IRQHandler(recorder.tim7Handle);
-    HAL_DAC_IRQHandler(recorder.dac4Handle);
-    /* USER CODE BEGIN TIM7_DAC_IRQn 1 */
-
-    /* USER CODE END TIM7_DAC_IRQn 1 */
+    HAL_TIM_IRQHandler(activeRecorder->serviceTimerHandle());
+    HAL_DAC_IRQHandler(activeRecorder->dac4Handle());
 }
 
 extern "C" void USART1_IRQHandler(void)
 {
-    HAL_UART_IRQHandler(&GetHwInstances()->huart1);
+    HAL_UART_IRQHandler(activeTelemetry->uartHandle());
 }
+
+extern "C" void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* timer)
+{
+    if (timer == &halTickTimer) {
+        HAL_IncTick();
+    }
+}
+
+} // namespace hydrv::hw

@@ -1,29 +1,21 @@
 #pragma once
 
-#include <stdbool.h>
+#include "stm32g4xx_hal.h"
 
+#ifdef __cplusplus
 #include "signalRecorder/SignalRecorder.h"
+#include "telemetry/UartTelemetry.h"
 
 namespace hydrv::hw {
-/**
- * @brief Bundle of initialized STM32 HAL peripheral handles.
- */
-struct HwInstances
-{
-    SignalRecorder* recorder;
 
-    TIM_HandleTypeDef htim15;
-};
+uint32_t enterCriticalSection() noexcept;
+void exitCriticalSection(uint32_t interruptState) noexcept;
+void initialize(SignalRecorder& recorder, UartTelemetry& telemetry) noexcept;
+[[noreturn]] void stop() noexcept;
 
-/**
- * @brief Return pointer to global hardware handles.
- */
-struct HwInstances* GetHwInstances(void);
-
-/**
- * @brief Initialize board peripherals required by the firmware.
- * @return true on success.
- */
-bool InitHw(void);
+extern "C" TIM_HandleTypeDef* GetHalTickTimer(void);
 
 } // namespace hydrv::hw
+#else
+TIM_HandleTypeDef* GetHalTickTimer(void);
+#endif

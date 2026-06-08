@@ -1,117 +1,127 @@
 #pragma once
 
 #include <array>
+#include <coroutine>
 #include <cstddef>
 #include <cstdint>
-#include <optional>
+#include <span>
 
 #include "CommonSettings.h"
+#include "Scheduler.h"
 #include "stm32g4xx_hal.h"
 
 namespace hydrv::hw {
+
 class SignalRecorder
 {
 public:
-    using SampleBuffer  = std::array<uint16_t, BUFFER_SIZE>;
-    using SampleBuffers = std::array<SampleBuffer, ADC_CHANNELS>;
-    bool startRecord() noexcept
-    {
-        bool ok = true;
-        ok and HAL_TIM_Base_Stop(&_htim6);
-        ok and (HAL_DAC_Start(&_hdac4, DAC_CHANNEL_1));
-        ok and (HAL_DAC_SetValue(&_hdac4, DAC_CHANNEL_1, DAC_ALIGN_12B_R, 2048));
-        ok and (HAL_OPAMP_Start(&_hopamp4));
+    using ChannelSamples = std::span<const uint16_t, kSignalBlockSize>;
 
-        ok and HAL_ADC_Start_DMA(&_hadc4, reinterpret_cast<uint32_t*>(_buffers[0].data()), SIGNAL_SAMPLE_BUFFER_SIZE);
-        ok and HAL_ADC_Start_DMA(&_hadc5, reinterpret_cast<uint32_t*>(_buffers[1].data()), SIGNAL_SAMPLE_BUFFER_SIZE);
-        ok and HAL_ADC_Start_DMA(&_hadc2, reinterpret_cast<uint32_t*>(_buffers[2].data()), SIGNAL_SAMPLE_BUFFER_SIZE);
-        ok and HAL_ADC_Start_DMA(&_hadc1, reinterpret_cast<uint32_t*>(_buffers[3].data()), SIGNAL_SAMPLE_BUFFER_SIZE);
-        ok and HAL_TIM_Base_Start(&_htim6);
-        ok and HAL_TIM_Base_Start(&_htim7);
-        return ok;
-    }
-
-    std::optional<SampleBuffers&> getSample()
+    struct RecordedBlock
     {
-        if (_halfReady) {
-            return
-            {
-                _buffers[0].data(), _buffers[1].data(), _buffers[2].data(), _buffers[3].data(),
-            }
-        }
-        else if (_fullReady) {
-            return
-            {
-                _buffers[0].data() + BUFFER_SIZE, _buffers[1].data() + BUFFER_SIZE, _buffers[2].data() + BUFFER_SIZE,
-                    _buffers[3].data() + BUFFER_SIZE,
-            }
-        }
-        else {
-            return {};
-        }
+        std::array<ChannelSamples, kAdcChannelCount> channelSamples;
+    };
+
+    class BlockAwaiter
+    {
+    public:
+        explicit BlockAwaiter(SignalRecorder& recorder) noexcept
+            : _recorder{ recorder }
+        {}
+
+        bool await_ready() const noexcept;
+        bool await_suspend(std::coroutine_handle<> awaiting) noexcept;
+        RecordedBlock await_resume() noexcept;
+
+    private:
+        SignalRecorder& _recorder;
+    };
+
+    explicit SignalRecorder(async::Scheduler& scheduler) noexcept
+        : _scheduler{ scheduler }
+    {}
+
+    bool startRecording() noexcept;
+    BlockAwaiter nextBlock() noexcept
+    {
+        return BlockAwaiter{ *this };
     }
 
-    void halfReady(ADC_HandleTypeDef* hadc)
-    {
-        _halfReady = true;
-        _fullReady = false;
-    }
+    void onHalfTransferComplete(ADC_HandleTypeDef* completedAdc) noexcept;
+    void onTransferComplete(ADC_HandleTypeDef* completedAdc) noexcept;
 
-    void fullReady(ADC_HandleTypeDef* hadc)
+    ADC_HandleTypeDef* adc1Handle() noexcept
     {
-        _fullReady = true;
-        _halfReady = false;
+        return &_adc1;
     }
-
-    ADC_HandleTypeDef* adc1Handle()
+    ADC_HandleTypeDef* adc2Handle() noexcept
     {
-        return &_hadc1;
+        return &_adc2;
     }
-    ADC_HandleTypeDef* adc2Handle()
+    ADC_HandleTypeDef* adc4Handle() noexcept
     {
-        return &_hadc2;
+        return &_adc4;
     }
-    ADC_HandleTypeDef* adc4Handle()
+    ADC_HandleTypeDef* adc5Handle() noexcept
     {
-        return &_hadc4;
+        return &_adc5;
     }
-    ADC_HandleTypeDef* adc5Handle()
+    DAC_HandleTypeDef* dac4Handle() noexcept
     {
-        return &_hadc5;
+        return &_dac4;
     }
-    DAC_HandleTypeDef* dac4Handle()
+    OPAMP_HandleTypeDef* opamp4Handle() noexcept
     {
-        return &_hdac4;
+        return &_opamp4;
     }
-
-    OPAMP_HandleTypeDef* opamp4Hanle()
+    TIM_HandleTypeDef* samplingTimerHandle() noexcept
     {
-        return &_hopamp4;
+        return &_samplingTimer;
     }
-
-    TIM_HandleTypeDef* tim6Handle()
+    TIM_HandleTypeDef* serviceTimerHandle() noexcept
     {
-        return &_htim6;
-    }
-    TIM_HandleTypeDef* tim7Handle()
-    {
-        return &_htim7;
+        return &_serviceTimer;
     }
 
 private:
-    using SignalSampleBuffer  = std::array<uint16_t, SIGNAL_SAMPLE_BUFFER_SIZE>;
-    using SignalSampleBuffers = std::array<SignalSampleBuffer, ADC_CHANNELS>;
-    bool _fullReady           = false;
-    bool _halfReady           = false;
-    SignalSampleBuffers _buffers;
-    DAC_HandleTypeDef _hdac4;
-    TIM_HandleTypeDef _htim6;
-    TIM_HandleTypeDef _htim7;
-    OPAMP_HandleTypeDef _hopamp4;
-    ADC_HandleTypeDef _hadc1;
-    ADC_HandleTypeDef _hadc2;
-    ADC_HandleTypeDef _hadc4;
-    ADC_HandleTypeDef _hadc5;
+    enum class ReadyBlock : uint8_t
+    {
+        None,
+        FirstHalf,
+        SecondHalf,
+    };
+
+    static constexpr uint8_t kAllAdcsCompleted = (1U << kAdcChannelCount) - 1U;
+    using DmaBuffer                            = std::array<uint16_t, kDmaBufferSize>;
+
+    static uint32_t enterCriticalSection() noexcept;
+    static void exitCriticalSection(uint32_t interruptState) noexcept;
+    bool hasReadyBlock() const noexcept;
+    bool waitForBlock(std::coroutine_handle<> awaiting) noexcept;
+    RecordedBlock takeReadyBlock() noexcept;
+    bool startAdcDma(ADC_HandleTypeDef& adc, DmaBuffer& destination) noexcept;
+    void stopRecording() noexcept;
+    uint8_t adcCompletionBit(const ADC_HandleTypeDef* completedAdc) const noexcept;
+    void markAdcComplete(ADC_HandleTypeDef* completedAdc,
+                         volatile uint8_t& completedAdcMask,
+                         ReadyBlock completedBlock) noexcept;
+    RecordedBlock makeBlock(std::size_t sampleOffset) const noexcept;
+
+    async::Scheduler& _scheduler;
+    std::array<DmaBuffer, kAdcChannelCount> _dmaBuffers{};
+    std::coroutine_handle<> _waitingCoroutine    = nullptr;
+    volatile uint8_t _completedFirstHalfAdcMask  = 0U;
+    volatile uint8_t _completedSecondHalfAdcMask = 0U;
+    volatile ReadyBlock _readyBlock              = ReadyBlock::None;
+
+    DAC_HandleTypeDef _dac4{};
+    OPAMP_HandleTypeDef _opamp4{};
+    TIM_HandleTypeDef _samplingTimer{};
+    TIM_HandleTypeDef _serviceTimer{};
+    ADC_HandleTypeDef _adc1{};
+    ADC_HandleTypeDef _adc2{};
+    ADC_HandleTypeDef _adc4{};
+    ADC_HandleTypeDef _adc5{};
 };
 
 } // namespace hydrv::hw

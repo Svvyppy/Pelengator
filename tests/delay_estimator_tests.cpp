@@ -4,8 +4,7 @@
 
 #include "DelayEstimator.hpp"
 
-namespace
-{
+namespace hydrv::tests {
 constexpr float kMicrosecondsPerSecond = 1000000.0f;
 
 bool NearlyEqual(float lhs, float rhs, float tolerance = 1e-6f)
@@ -14,161 +13,161 @@ bool NearlyEqual(float lhs, float rhs, float tolerance = 1e-6f)
     return (diff <= tolerance) && (-diff <= tolerance);
 }
 
-peleng::EnvelopeBuffers MakeDetectedBuffers(const std::array<std::size_t, ADC_CHANNELS> &crossings)
+hydrv::peleng::ChannelSignalBlocks MakeDetectedBuffers(
+    const std::array<std::size_t, hydrv::kAdcChannelCount>& crossings)
 {
-    peleng::EnvelopeBuffers buffers{};
-    for (std::size_t channel = 0U; channel < ADC_CHANNELS; ++channel)
-    {
+    hydrv::peleng::ChannelSignalBlocks buffers{};
+    for (std::size_t channel = 0U; channel < hydrv::kAdcChannelCount; ++channel) {
         buffers[channel].fill(0.0f);
         const std::size_t index = crossings[channel];
-        if (index < SIGNAL_BLOCK_SIZE)
-        {
-            buffers[channel][index] = SIGNAL_THRESHOLD_Q15 + 10;
+        if (index < hydrv::kSignalBlockSize) {
+            buffers[channel][index] = hydrv::kSignalThreshold + 10;
         }
     }
     return buffers;
 }
 
-float ExpectedDelayMicroseconds(std::size_t hydrophone, const std::array<float, 3U> &direction)
+float ExpectedDelayMicroseconds(std::size_t hydrophone, const std::array<float, 3U>& direction)
 {
     float projection_m = 0.0f;
-    for (std::size_t axis = 0U; axis < 3U; ++axis)
-    {
-        projection_m += (HYDROPHONE_POSITIONS_M[hydrophone][axis] - HYDROPHONE_POSITIONS_M[0][axis]) *
-                        direction[axis];
+    for (std::size_t axis = 0U; axis < 3U; ++axis) {
+        projection_m +=
+            (hydrv::kHydrophonePositionsMeters[hydrophone][axis] - hydrv::kHydrophonePositionsMeters[0][axis]) *
+            direction[axis];
     }
 
-    return (-projection_m / SOUND_SPEED_MPS) * kMicrosecondsPerSecond;
+    return (-projection_m / hydrv::kSoundSpeedMetersPerSecond) * kMicrosecondsPerSecond;
 }
-} // namespace
+} // namespace hydrv::tests
 
 TEST_CASE("Delay estimator computes valid inter-channel delays", "[delay]")
 {
-    const auto buffers = MakeDetectedBuffers({100U, 108U, 112U, 101U});
-    const DelayMeasurements delays = peleng::EstimateDelayMeasurements(buffers);
+    const auto buffers                            = hydrv::tests::MakeDetectedBuffers({ 100U, 108U, 112U, 101U });
+    const hydrv::peleng::DelayMeasurements delays = hydrv::peleng::estimateDelays(buffers);
 
     REQUIRE(delays.valid);
-    REQUIRE(delays.d12_samples == 8);
-    REQUIRE(delays.d13_samples == 12);
-    REQUIRE(delays.d14_samples == 1);
-    REQUIRE(NearlyEqual(delays.d12_us, peleng::SamplesToMicroseconds(8), 1e-4f));
-    REQUIRE(NearlyEqual(delays.d13_us, peleng::SamplesToMicroseconds(12), 1e-4f));
-    REQUIRE(NearlyEqual(delays.d14_us, peleng::SamplesToMicroseconds(1), 1e-4f));
-    REQUIRE(delays.angles_valid);
-    REQUIRE(NearlyEqual((delays.direction_x * delays.direction_x) + (delays.direction_y * delays.direction_y) +
-                            (delays.direction_z * delays.direction_z),
-                        1.0f, 1e-4f));
+    REQUIRE(delays.channel2Samples == 8);
+    REQUIRE(delays.channel3Samples == 12);
+    REQUIRE(delays.channel4Samples == 1);
+    REQUIRE(hydrv::tests::NearlyEqual(delays.channel2Microseconds, hydrv::peleng::samplesToMicroseconds(8), 1e-4f));
+    REQUIRE(hydrv::tests::NearlyEqual(delays.channel3Microseconds, hydrv::peleng::samplesToMicroseconds(12), 1e-4f));
+    REQUIRE(hydrv::tests::NearlyEqual(delays.channel4Microseconds, hydrv::peleng::samplesToMicroseconds(1), 1e-4f));
+    REQUIRE(delays.directionValid);
+    REQUIRE(hydrv::tests::NearlyEqual((delays.directionX * delays.directionX) +
+                                          (delays.directionY * delays.directionY) +
+                                          (delays.directionZ * delays.directionZ),
+                                      1.0f,
+                                      1e-4f));
 }
 
 TEST_CASE("Delay estimator marks frame invalid if any channel has no crossing", "[delay]")
 {
-    peleng::EnvelopeBuffers buffers{};
-    for (auto &channel : buffers)
-    {
+    hydrv::peleng::ChannelSignalBlocks buffers{};
+    for (auto& channel : buffers) {
         channel.fill(0.0f);
     }
 
-    const DelayMeasurements delays = peleng::EstimateDelayMeasurements(buffers);
+    const hydrv::peleng::DelayMeasurements delays = hydrv::peleng::estimateDelays(buffers);
     REQUIRE(!delays.valid);
-    REQUIRE(!delays.angles_valid);
+    REQUIRE(!delays.directionValid);
 }
 
 TEST_CASE("Threshold crossing uses only the configured envelope window", "[delay]")
 {
-    peleng::HalfBuffer buffer{};
+    hydrv::peleng::SignalBlock buffer{};
     buffer.fill(0);
-    buffer[10] = SIGNAL_THRESHOLD_MAX_Q15 + 1;
-    buffer[20] = SIGNAL_THRESHOLD_Q15 - 1;
-    buffer[30] = SIGNAL_THRESHOLD_Q15;
+    buffer[10] = hydrv::kMaximumSignalThreshold + 1;
+    buffer[20] = hydrv::kSignalThreshold - 1;
+    buffer[30] = hydrv::kSignalThreshold;
 
-    const ThresholdCrossing crossing = peleng::FindThresholdCrossing(buffer);
+    const hydrv::peleng::ThresholdCrossing crossing = hydrv::peleng::findThresholdCrossing(buffer);
 
     REQUIRE(crossing.found);
-    REQUIRE(crossing.index == 30U);
-    REQUIRE(crossing.value == SIGNAL_THRESHOLD_Q15);
+    REQUIRE(crossing.sampleIndex == 30U);
+    REQUIRE(crossing.value == hydrv::kSignalThreshold);
 }
 
 TEST_CASE("Delay estimator rejects physically impossible arrival spread", "[delay]")
 {
-    const auto buffers = MakeDetectedBuffers({100U, 300U, 112U, 101U});
-    const DelayMeasurements delays = peleng::EstimateDelayMeasurements(buffers);
+    const auto buffers                            = hydrv::tests::MakeDetectedBuffers({ 100U, 300U, 112U, 101U });
+    const hydrv::peleng::DelayMeasurements delays = hydrv::peleng::estimateDelays(buffers);
 
     REQUIRE(!delays.valid);
-    REQUIRE(!delays.angles_valid);
+    REQUIRE(!delays.directionValid);
 }
 
 TEST_CASE("Direction estimator recovers vertical source direction", "[delay]")
 {
-    constexpr std::array<float, 3U> kPeleng90Direction = {0.0f, 0.0f, 1.0f};
-    const float d12_us = ExpectedDelayMicroseconds(1U, kPeleng90Direction);
-    const float d13_us = ExpectedDelayMicroseconds(2U, kPeleng90Direction);
-    const float d14_us = ExpectedDelayMicroseconds(3U, kPeleng90Direction);
+    constexpr std::array<float, 3U> kPeleng90Direction = { 0.0f, 0.0f, 1.0f };
+    const float d12_us = hydrv::tests::ExpectedDelayMicroseconds(1U, kPeleng90Direction);
+    const float d13_us = hydrv::tests::ExpectedDelayMicroseconds(2U, kPeleng90Direction);
+    const float d14_us = hydrv::tests::ExpectedDelayMicroseconds(3U, kPeleng90Direction);
 
-    REQUIRE(NearlyEqual(d12_us, 0.0f, 1e-4f));
+    REQUIRE(hydrv::tests::NearlyEqual(d12_us, 0.0f, 1e-4f));
     REQUIRE(d13_us < 0.0f);
-    REQUIRE(NearlyEqual(d14_us, 0.0f, 1e-4f));
+    REQUIRE(hydrv::tests::NearlyEqual(d14_us, 0.0f, 1e-4f));
 
-    DelayMeasurements delays{};
-    delays.valid = true;
-    delays.d12_us = d12_us;
-    delays.d13_us = d13_us;
-    delays.d14_us = d14_us;
+    hydrv::peleng::DelayMeasurements delays{};
+    delays.valid                = true;
+    delays.channel2Microseconds = d12_us;
+    delays.channel3Microseconds = d13_us;
+    delays.channel4Microseconds = d14_us;
 
-    peleng::EstimateDirectionLeastSquares(delays);
+    hydrv::peleng::estimateDirection(delays);
 
-    REQUIRE(delays.angles_valid);
-    REQUIRE(NearlyEqual(delays.direction_x, 0.0f, 1e-4f));
-    REQUIRE(NearlyEqual(delays.direction_y, 0.0f, 1e-4f));
-    REQUIRE(NearlyEqual(delays.direction_z, 1.0f, 1e-4f));
-    REQUIRE(NearlyEqual(delays.peleng_deg, 0.0f, 1e-4f));
-    REQUIRE(NearlyEqual(delays.elevation_deg, 90.0f, 1e-4f));
+    REQUIRE(delays.directionValid);
+    REQUIRE(hydrv::tests::NearlyEqual(delays.directionX, 0.0f, 1e-4f));
+    REQUIRE(hydrv::tests::NearlyEqual(delays.directionY, 0.0f, 1e-4f));
+    REQUIRE(hydrv::tests::NearlyEqual(delays.directionZ, 1.0f, 1e-4f));
+    REQUIRE(hydrv::tests::NearlyEqual(delays.bearingDegrees, 0.0f, 1e-4f));
+    REQUIRE(hydrv::tests::NearlyEqual(delays.elevationDegrees, 90.0f, 1e-4f));
 }
 
 TEST_CASE("Direction estimator recovers Y positive bearing at 90 degrees", "[delay]")
 {
-    constexpr std::array<float, 3U> kPeleng90Direction = {0.0f, 1.0f, 0.0f};
-    const float d12_us = ExpectedDelayMicroseconds(1U, kPeleng90Direction);
-    const float d13_us = ExpectedDelayMicroseconds(2U, kPeleng90Direction);
-    const float d14_us = ExpectedDelayMicroseconds(3U, kPeleng90Direction);
+    constexpr std::array<float, 3U> kPeleng90Direction = { 0.0f, 1.0f, 0.0f };
+    const float d12_us = hydrv::tests::ExpectedDelayMicroseconds(1U, kPeleng90Direction);
+    const float d13_us = hydrv::tests::ExpectedDelayMicroseconds(2U, kPeleng90Direction);
+    const float d14_us = hydrv::tests::ExpectedDelayMicroseconds(3U, kPeleng90Direction);
 
     REQUIRE(d12_us > 0.0f);
     REQUIRE(d13_us > 0.0f);
     REQUIRE(d14_us > 0.0f);
 
-    DelayMeasurements delays{};
-    delays.valid = true;
-    delays.d12_us = d12_us;
-    delays.d13_us = d13_us;
-    delays.d14_us = d14_us;
+    hydrv::peleng::DelayMeasurements delays{};
+    delays.valid                = true;
+    delays.channel2Microseconds = d12_us;
+    delays.channel3Microseconds = d13_us;
+    delays.channel4Microseconds = d14_us;
 
-    peleng::EstimateDirectionLeastSquares(delays);
+    hydrv::peleng::estimateDirection(delays);
 
-    REQUIRE(delays.angles_valid);
-    REQUIRE(NearlyEqual(delays.direction_x, 0.0f, 1e-4f));
-    REQUIRE(NearlyEqual(delays.direction_y, 1.0f, 1e-4f));
-    REQUIRE(NearlyEqual(delays.direction_z, 0.0f, 1e-4f));
-    REQUIRE(NearlyEqual(delays.peleng_deg, 90.0f, 1e-4f));
-    REQUIRE(NearlyEqual(delays.elevation_deg, 0.0f, 1e-4f));
+    REQUIRE(delays.directionValid);
+    REQUIRE(hydrv::tests::NearlyEqual(delays.directionX, 0.0f, 1e-4f));
+    REQUIRE(hydrv::tests::NearlyEqual(delays.directionY, 1.0f, 1e-4f));
+    REQUIRE(hydrv::tests::NearlyEqual(delays.directionZ, 0.0f, 1e-4f));
+    REQUIRE(hydrv::tests::NearlyEqual(delays.bearingDegrees, 90.0f, 1e-4f));
+    REQUIRE(hydrv::tests::NearlyEqual(delays.elevationDegrees, 0.0f, 1e-4f));
 }
 
 TEST_CASE("Direction estimator reports elevation from XY plane", "[delay]")
 {
-    constexpr float kSin30 = 0.5f;
-    constexpr float kCos30 = 0.8660254038f;
-    constexpr std::array<float, 3U> kDirection = {kCos30, 0.0f, kSin30};
+    constexpr float kSin30                     = 0.5f;
+    constexpr float kCos30                     = 0.8660254038f;
+    constexpr std::array<float, 3U> kDirection = { kCos30, 0.0f, kSin30 };
 
-    DelayMeasurements delays{};
-    delays.valid = true;
-    delays.d12_us = ExpectedDelayMicroseconds(1U, kDirection);
-    delays.d13_us = ExpectedDelayMicroseconds(2U, kDirection);
-    delays.d14_us = ExpectedDelayMicroseconds(3U, kDirection);
+    hydrv::peleng::DelayMeasurements delays{};
+    delays.valid                = true;
+    delays.channel2Microseconds = hydrv::tests::ExpectedDelayMicroseconds(1U, kDirection);
+    delays.channel3Microseconds = hydrv::tests::ExpectedDelayMicroseconds(2U, kDirection);
+    delays.channel4Microseconds = hydrv::tests::ExpectedDelayMicroseconds(3U, kDirection);
 
-    peleng::EstimateDirectionLeastSquares(delays);
+    hydrv::peleng::estimateDirection(delays);
 
-    REQUIRE(delays.angles_valid);
-    REQUIRE(NearlyEqual(delays.direction_x, kCos30, 1e-4f));
-    REQUIRE(NearlyEqual(delays.direction_y, 0.0f, 1e-4f));
-    REQUIRE(NearlyEqual(delays.direction_z, kSin30, 1e-4f));
-    REQUIRE(NearlyEqual(delays.peleng_deg, 0.0f, 1e-4f));
-    REQUIRE(NearlyEqual(delays.elevation_deg, 30.0f, 1e-4f));
+    REQUIRE(delays.directionValid);
+    REQUIRE(hydrv::tests::NearlyEqual(delays.directionX, kCos30, 1e-4f));
+    REQUIRE(hydrv::tests::NearlyEqual(delays.directionY, 0.0f, 1e-4f));
+    REQUIRE(hydrv::tests::NearlyEqual(delays.directionZ, kSin30, 1e-4f));
+    REQUIRE(hydrv::tests::NearlyEqual(delays.bearingDegrees, 0.0f, 1e-4f));
+    REQUIRE(hydrv::tests::NearlyEqual(delays.elevationDegrees, 30.0f, 1e-4f));
 }

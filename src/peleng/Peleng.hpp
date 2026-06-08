@@ -6,48 +6,35 @@
 
 #include "DelayEstimator.hpp"
 #include "Filter.hpp"
-#include "SignalAcquisition.h"
+#include "Scheduler.h"
+#include "SignalRecorder.h"
+#include "Task.h"
+#include "UartTelemetry.h"
 
-/**
- * @brief Top-level real-time orchestrator for Peleng DSP pipeline.
- *
- * Owns acquisition sample buffers, performs conversion and filtering, estimates
- * delays, and publishes most recent measurements for telemetry.
- */
+namespace hydrv::peleng {
+
 class Peleng
 {
 public:
-    /** @brief Construct processing pipeline and internal state. */
     Peleng();
-    ~Peleng() = default;
-
-    /** @brief Initialize signal acquisition path. */
-    void Init();
-    /**
-     * @brief Run one non-blocking processing iteration in the main loop.
-     * @return true when a ready acquisition block was processed.
-     */
-    bool Process();
-
-    /**
-     * @brief Get latest computed channel delays.
-     * @param[out] out Destination structure.
-     * @return true if a new delay frame was available and copied.
-     */
-    bool TryGetLatestDelays(DelayMeasurements* out);
-    void FillDebugSnapshot(platform::SignalAcquisitionDebug* out) const;
+    [[noreturn]] void run();
 
 private:
-    using HalfBuffer = std::array<q15_t, SIGNAL_BLOCK_SIZE>;
+    async::Task<> processSignals();
+    void processSignal(const hw::SignalRecorder::RecordedBlock& recordedBlock);
+    void publishMeasurements(const DelayMeasurements& measurements);
+    static void convertSignal(const uint16_t* source, q15_t* destination);
+    static int32_t roundToInteger(float value);
+    static uint32_t magnitude(int32_t value);
 
-    platform::SignalSampleBuffers sample_buffers_{};
-    std::array<HalfBuffer, ADC_CHANNELS> work_buffers_{};
-    std::array<HalfBuffer, ADC_CHANNELS> envelope_buffers_{};
-    std::array<Filter, ADC_CHANNELS> envelope_filters_{};
-
-    DelayMeasurements latest_delays_{};
-    bool has_new_delays_ = false;
-
-    void ProcessHalfTransfer(std::size_t start_index);
-    static void ConvertAdcToSquaredQ15(const uint16_t* source, q15_t* destination, std::size_t length);
+    async::Scheduler _scheduler;
+    hw::SignalRecorder _recorder;
+    hw::UartTelemetry _telemetry{};
+    async::Task<> _signalProcessingTask{};
+    ChannelSignalBlocks _squaredSignals{};
+    ChannelSignalBlocks _filteredSignals{};
+    std::array<Filter, kAdcChannelCount> _filters{};
+    uint32_t _processedFrames = 0U;
 };
+
+} // namespace hydrv::peleng

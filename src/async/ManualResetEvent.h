@@ -6,7 +6,7 @@
 
 #include "Scheduler.h"
 
-namespace async {
+namespace hydrv::async {
 
 class ManualResetEvent
 {
@@ -16,11 +16,11 @@ public:
     {}
     bool await_ready() const noexcept
     {
-        return IsSet();
+        return isSet();
     }
     bool await_suspend(std::coroutine_handle<> awaiting) noexcept
     {
-        if (IsSet()) {
+        if (isSet()) {
             return false;
         }
         assert(!_waiter);
@@ -30,9 +30,9 @@ public:
     void await_resume() const noexcept
     {}
 
-    bool Set() noexcept
+    bool set() noexcept
     {
-        _is_set = true;
+        _isSet = true;
         if (!_waiter) {
             return false;
         }
@@ -45,24 +45,24 @@ public:
         _waiter = nullptr;
         return true;
     }
-    void Reset() noexcept
+    void reset() noexcept
     {
-        _is_set = false;
+        _isSet = false;
     }
 
-    bool IsSet() const noexcept
+    bool isSet() const noexcept
     {
-        return _is_set;
+        return _isSet;
     }
-    bool HasWaiter() const noexcept
+    bool hasWaiter() const noexcept
     {
         return static_cast<bool>(_waiter);
     }
 
 private:
     Scheduler& _scheduler;
-    bool _is_set                    = false;
+    bool _isSet                     = false;
     std::coroutine_handle<> _waiter = nullptr;
 };
 
-} // namespace async
+} // namespace hydrv::async

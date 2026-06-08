@@ -61,7 +61,7 @@ HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority)
     uwPrescalerValue = (uint32_t)((uwTimclock / 1000000U) - 1U);
 
     /* Initialize TIM15 */
-    GetHwInstances()->htim15.Instance = TIM15;
+    GetHalTickTimer()->Instance = TIM15;
 
     /* Initialize TIMx peripheral as follow:
      * Period = [(TIM15CLK/1000) - 1]. to have a (1/1000) s time base.
@@ -69,16 +69,16 @@ HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority)
      * ClockDivision = 0
      * Counter direction = Up
      */
-    GetHwInstances()->htim15.Init.Period = (1000000U / 1000U) - 1U;
-    GetHwInstances()->htim15.Init.Prescaler = uwPrescalerValue;
-    GetHwInstances()->htim15.Init.ClockDivision = 0;
-    GetHwInstances()->htim15.Init.CounterMode = TIM_COUNTERMODE_UP;
+    GetHalTickTimer()->Init.Period = (1000000U / 1000U) - 1U;
+    GetHalTickTimer()->Init.Prescaler = uwPrescalerValue;
+    GetHalTickTimer()->Init.ClockDivision = 0;
+    GetHalTickTimer()->Init.CounterMode = TIM_COUNTERMODE_UP;
 
-    status = HAL_TIM_Base_Init(&GetHwInstances()->htim15);
+    status = HAL_TIM_Base_Init(GetHalTickTimer());
     if (status == HAL_OK)
     {
         /* Start the TIM time Base generation in interrupt mode */
-        status = HAL_TIM_Base_Start_IT(&GetHwInstances()->htim15);
+        status = HAL_TIM_Base_Start_IT(GetHalTickTimer());
         if (status == HAL_OK)
         {
             /* Enable the TIM15 global Interrupt */
@@ -110,7 +110,7 @@ HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority)
 void HAL_SuspendTick(void)
 {
     /* Disable TIM15 update Interrupt */
-    __HAL_TIM_DISABLE_IT(&GetHwInstances()->htim15, TIM_IT_UPDATE);
+    __HAL_TIM_DISABLE_IT(GetHalTickTimer(), TIM_IT_UPDATE);
 }
 
 /**
@@ -122,5 +122,5 @@ void HAL_SuspendTick(void)
 void HAL_ResumeTick(void)
 {
     /* Enable TIM15 Update interrupt */
-    __HAL_TIM_ENABLE_IT(&GetHwInstances()->htim15, TIM_IT_UPDATE);
+    __HAL_TIM_ENABLE_IT(GetHalTickTimer(), TIM_IT_UPDATE);
 }

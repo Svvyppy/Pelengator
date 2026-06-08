@@ -59,6 +59,7 @@ add_executable(peleng_host_tests
 
 target_include_directories(peleng_host_tests PRIVATE
     ../src/peleng
+    ../src/platforms
     ../src
 )
 
